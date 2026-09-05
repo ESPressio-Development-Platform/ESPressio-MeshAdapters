@@ -35,8 +35,9 @@ public:
 
 /// <summary>Injected outbound Mesh submission path for an ownership-bearing serialized Event packet.</summary>
 /// <remarks>
-/// The implementation chooses the already-authorized Node destination, deadline, MeshMessageId and routing composition.
-/// Acceptance transfers shared immutable packet ownership; no Event bytes need to be copied per Mesh recipient.
+/// The implementation chooses an already-authorized Node or selective destination, deadline, MeshMessageId issuance and
+/// routing composition. Acceptance transfers shared immutable packet ownership; no Event bytes need to be copied per
+/// Mesh recipient.
 /// </remarks>
 class IEventMeshOutboundSubmission {
 public:
