@@ -84,3 +84,18 @@ jobs:
           -o event_mesh_selective_submission_test
       - name: Run Event Mesh selective submission regression
         run: ./event_mesh_selective_submission_test
+      - name: Build Event Mesh Broadcast submission regression
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -Werror
+          -IESPressio-MeshAdapters/src
+          -IESPressio-Mesh/src
+          -IESPressio-Event/src
+          -IESPressio-System/src
+          -IESPressio-Primitive/src
+          -IESPressio-Radio/src
+          -IESPressio-Observable/src
+          ESPressio-MeshAdapters/tests/event_mesh_broadcast_submission_test.cpp
+          -o event_mesh_broadcast_submission_test
+          -pthread
+      - name: Run Event Mesh Broadcast submission regression
+        run: ./event_mesh_broadcast_submission_test
