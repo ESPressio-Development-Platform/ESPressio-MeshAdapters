@@ -34,6 +34,16 @@ jobs:
           repository: ESPressio-Development-Platform/ESPressio-Primitive
           ref: structural_realignment_propagation_ESPressio-Mesh
           path: ESPressio-Primitive
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Radio
+          ref: structural_realignment_propagation_ESPressio-Mesh
+          path: ESPressio-Radio
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Observable
+          ref: structural_realignment
+          path: ESPressio-Observable
       - name: Build Event Mesh transport regression
         run: >-
           g++ -std=c++17 -Wall -Wextra -Werror
@@ -46,3 +56,17 @@ jobs:
           -o event_mesh_transport_test
       - name: Run Event Mesh transport regression
         run: ./event_mesh_transport_test
+      - name: Build Event Mesh Node submission regression
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -Werror
+          -IESPressio-MeshAdapters/src
+          -IESPressio-Mesh/src
+          -IESPressio-Event/src
+          -IESPressio-System/src
+          -IESPressio-Primitive/src
+          -IESPressio-Radio/src
+          -IESPressio-Observable/src
+          ESPressio-MeshAdapters/tests/event_mesh_node_submission_test.cpp
+          -o event_mesh_node_submission_test
+      - name: Run Event Mesh Node submission regression
+        run: ./event_mesh_node_submission_test
