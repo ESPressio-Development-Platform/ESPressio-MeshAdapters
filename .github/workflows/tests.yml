@@ -1,0 +1,48 @@
+name: tests
+
+on:
+  push:
+    branches:
+      - structural_realignment
+      - 'structural_realignment_propagation*'
+  pull_request:
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ESPressio-MeshAdapters
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Mesh
+          ref: structural_realignment_propagation
+          path: ESPressio-Mesh
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Event
+          ref: structural_realignment_propagation_ESPressio-Mesh
+          path: ESPressio-Event
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-System
+          ref: structural_realignment_propagation_ESPressio-Mesh
+          path: ESPressio-System
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Primitive
+          ref: structural_realignment_propagation_ESPressio-Mesh
+          path: ESPressio-Primitive
+      - name: Build Event Mesh transport regression
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -Werror
+          -IESPressio-MeshAdapters/src
+          -IESPressio-Mesh/src
+          -IESPressio-Event/src
+          -IESPressio-System/src
+          -IESPressio-Primitive/src
+          ESPressio-MeshAdapters/tests/event_mesh_transport_test.cpp
+          -o event_mesh_transport_test
+      - name: Run Event Mesh transport regression
+        run: ./event_mesh_transport_test
