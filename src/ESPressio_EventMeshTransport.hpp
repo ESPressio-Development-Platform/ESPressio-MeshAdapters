@@ -54,8 +54,11 @@ public:
 /// </summary>
 /// <remarks>
 /// The adapter owns neither destination selection nor packet storage capacity. Inbound authenticated Mesh provenance is
-/// deliberately reduced to Event's Remote dispatch provenance by EventTransportManager; it is not written into Event
-/// object state. Concrete Mesh framing and security remain owned by Mesh composition.
+/// automatically handed to the registered Event transport receiver. In normal composition that receiver is
+/// EventTransportManager, which deserializes the registered Event type and submits it to the local EventManager with
+/// EventOrigin::Remote; applications do not wire a remote-to-local handoff per Event type. Type registration remains
+/// necessary to define identity, schema, serialization and direction. Concrete Mesh framing and security remain owned by
+/// Mesh composition, and authenticated Mesh provenance is deliberately not written into Event object state.
 /// </remarks>
 class EventMeshTransport final :
     public Event::IEventTransport,

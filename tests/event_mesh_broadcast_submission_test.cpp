@@ -37,6 +37,7 @@ public:
     std::uint64_t Deadline{0U};
     Mesh::RemainingHopLimit HopLimit{0U};
     const Plan* ObservedPlan{nullptr};
+    Mesh::MeshBroadcastLocalDispatch LocalDispatch{Mesh::MeshBroadcastLocalDispatch::Include};
     Mesh::MeshV1BroadcastDisposition Next{Mesh::MeshV1BroadcastDisposition::Completed};
 
     Mesh::MeshV1BroadcastResult Submit(
@@ -45,7 +46,8 @@ public:
         std::uint64_t now,
         std::uint64_t deadline,
         Mesh::RemainingHopLimit hopLimit,
-        const Plan& plan
+        const Plan& plan,
+        Mesh::MeshBroadcastLocalDispatch localDispatch
     ) noexcept {
         Primitive = primitive;
         Payload = payload.StableData();
@@ -54,6 +56,7 @@ public:
         Deadline = deadline;
         HopLimit = hopLimit;
         ObservedPlan = &plan;
+        LocalDispatch = localDispatch;
         return {Next, 77U};
     }
 };
@@ -77,6 +80,7 @@ int main() {
     assert(broadcast.Payload == backing->data() && broadcast.PayloadBytes == backing->size());
     assert(broadcast.Now == 100U && broadcast.Deadline == 500U && broadcast.HopLimit == 4U);
     assert(broadcast.ObservedPlan == &plan);
+    assert(broadcast.LocalDispatch == Mesh::MeshBroadcastLocalDispatch::Exclude);
     assert(submission.LastResult().Disposition == Mesh::MeshV1BroadcastDisposition::Completed);
     assert(submission.LastResult().MessageId == 77U);
 

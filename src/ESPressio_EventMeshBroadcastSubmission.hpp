@@ -36,7 +36,9 @@ public:
 /// The Event packet already owns immutable shared bytes. Mesh copies those bytes into its explicit frame workspace before
 /// this call returns, so the adapter retains no second packet or hidden byte capacity. Deadline/hop policy and the
 /// bounded one-binding-per-neighbour plan are composition-owned. Broadcast success means processing/fan-out attempts
-/// completed; it does not promise any recipient delivery and creates no Event or Mesh acknowledgement state.
+/// completed; it does not promise any recipient delivery and creates no Event or Mesh acknowledgement state. EventManager
+/// has already dispatched an originating Event locally, so this adapter explicitly suppresses Mesh's optional origin-side
+/// primitive dispatch. Authenticated remote Event payloads still enter EventTransportManager through EventMeshTransport.
 /// </remarks>
 template<typename TBroadcastCoordinator, typename TFanoutPlan>
 class EventMeshBroadcastSubmission final : public IEventMeshOutboundSubmission {
@@ -64,7 +66,7 @@ public:
             {Primitive::FamilyIds::Event, version},
             Mesh::ApplicationPayload::Borrowed(packet.Data(), packet.Size()),
             context.NowMilliseconds, context.AbsoluteDeadlineMilliseconds,
-            context.HopLimit, _plan);
+            context.HopLimit, _plan, Mesh::MeshBroadcastLocalDispatch::Exclude);
         return _last.Disposition == Mesh::MeshV1BroadcastDisposition::Completed;
     }
 
