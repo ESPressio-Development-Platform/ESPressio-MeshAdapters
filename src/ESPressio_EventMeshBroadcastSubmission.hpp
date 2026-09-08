@@ -11,6 +11,16 @@
 
 namespace ESPressio::MeshAdapters {
 
+/**
+ * ESPressio Memory Audit
+ * Members:
+ * - NowMilliseconds (std::uint64_t): 8 bytes [0 bytes dynamic allocation]
+ * - AbsoluteDeadlineMilliseconds (std::uint64_t): 8 bytes [0 bytes dynamic allocation]
+ * - HopLimit (Mesh::RemainingHopLimit): 1 bytes [0 bytes dynamic allocation]
+ * Total Memory: 20 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 struct EventMeshBroadcastTransmissionContext final {
     std::uint64_t NowMilliseconds{0U};
     std::uint64_t AbsoluteDeadlineMilliseconds{0U};
@@ -22,6 +32,13 @@ struct EventMeshBroadcastTransmissionContext final {
     }
 };
 
+/**
+ * ESPressio Memory Audit
+ * Members: none; polymorphic/virtual-base object metadata is included in the total.
+ * Total Memory: 4 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class IEventMeshBroadcastTransmissionContextProvider {
 public:
     virtual ~IEventMeshBroadcastTransmissionContextProvider() = default;
@@ -40,6 +57,18 @@ public:
 /// has already dispatched an originating Event locally, so this adapter explicitly suppresses Mesh's optional origin-side
 /// primitive dispatch. Authenticated remote Event payloads still enter EventTransportManager through EventMeshTransport.
 /// </remarks>
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - _broadcast (TBroadcastCoordinator&): 4 bytes [0 bytes dynamic allocation]
+ * - _plan (TFanoutPlan&): 4 bytes [0 bytes dynamic allocation]
+ * - _contexts (IEventMeshBroadcastTransmissionContextProvider&): 4 bytes [0 bytes dynamic allocation]
+ * - _last (Mesh::MeshV1BroadcastResult): 16 bytes [0 bytes dynamic allocation]
+ * Total Memory: 32 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 template<typename TBroadcastCoordinator, typename TFanoutPlan>
 class EventMeshBroadcastSubmission final : public IEventMeshOutboundSubmission {
     TBroadcastCoordinator& _broadcast;
