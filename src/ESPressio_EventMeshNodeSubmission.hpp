@@ -78,17 +78,17 @@ public:
 template<std::size_t TransmissionCapacity = Mesh::Limits::MaxActiveApplicationTransmissions,
          std::size_t RecipientCapacity = Mesh::Limits::MaxRecipientsPerTransmission>
 class EventMeshNodeSubmission final : public IEventMeshOutboundSubmission {
-        /**
-     * ESPressio Memory Audit
-     * Members:
-     * - Used (bool): 1 bytes [0 bytes dynamic allocation]
-     * - Transmission (Mesh::ApplicationTransmissionHandle): 4 bytes [0 bytes dynamic allocation]
-     * - Packet (Event::EventTransportPacket): 16 bytes [_buffer: shared control block (~12+ bytes; allocate_shared may co-locate object) + object 16 bytes; _buffer: pointee: Capacity * (1 bytes) element storage]
-     * Total Memory: 24 bytes [Packet: _buffer: shared control block (~12+ bytes; allocate_shared may co-locate object) + object 16 bytes; Packet: _buffer: pointee: Capacity * (1 bytes) element storage]
-     * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
-     * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
-     * End ESPressio Memory Audit
-     */
+/**
+ * ESPressio Memory Audit
+ * Members:
+ * - Used (bool): 1 bytes [0 bytes dynamic allocation]
+ * - Transmission (Mesh::ApplicationTransmissionHandle): 4 bytes [0 bytes dynamic allocation]
+ * - Packet (Event::EventTransportPacket): 16 bytes [_buffer: shared control block (~12+ bytes; allocate_shared may co-locate object) + object 16 bytes; _buffer: pointee: Capacity * (1 bytes) element storage]
+ * Total Memory: 24 bytes [Packet: _buffer: shared control block (~12+ bytes; allocate_shared may co-locate object) + object 16 bytes; Packet: _buffer: pointee: Capacity * (1 bytes) element storage]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 struct Record final {
         bool Used{false};
         Mesh::ApplicationTransmissionHandle Transmission{};
