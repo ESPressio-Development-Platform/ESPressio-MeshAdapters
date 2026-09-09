@@ -17,12 +17,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Mesh
-          ref: structural_realignment_propagation
+          ref: primitives_redesign
           path: ESPressio-Mesh
       - uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Event
-          ref: structural_realignment_propagation_ESPressio-Mesh
+          ref: primitives_redesign
           path: ESPressio-Event
       - uses: actions/checkout@v4
         with:
@@ -32,17 +32,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Primitive
-          ref: structural_realignment_propagation_ESPressio-Mesh
+          ref: primitives_redesign
           path: ESPressio-Primitive
       - uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Radio
-          ref: structural_realignment_propagation_ESPressio-Mesh
+          ref: primitives_redesign
           path: ESPressio-Radio
       - uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Observable
-          ref: structural_realignment
+          ref: primitives_redesign
           path: ESPressio-Observable
       - name: Build Event Mesh transport regression
         run: >-
