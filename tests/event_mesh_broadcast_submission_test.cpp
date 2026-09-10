@@ -10,16 +10,7 @@ using namespace ESPressio;
 
 namespace {
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - Observed (Event::EventMessageId): 8 bytes [0 bytes dynamic allocation]
- * - Available (bool): 1 bytes [0 bytes dynamic allocation]
- * Total Memory: 16 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class Contexts final : public MeshAdapters::IEventMeshBroadcastTransmissionContextProvider {
 public:
     Event::EventMessageId Observed{};
@@ -36,31 +27,10 @@ public:
     }
 };
 
-/**
- * ESPressio Memory Audit
- * Members: none (standalone empty object occupies 1 byte; an eligible empty base may be optimized to 0 bytes).
- * Total Memory: 1 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 struct Plan final {};
 
-/**
- * ESPressio Memory Audit
- * Members:
- * - Primitive (Mesh::ApplicationPrimitiveDescriptor): 4 bytes [0 bytes dynamic allocation]
- * - Payload (std::uint8_t*): 4 bytes [0 bytes dynamic allocation]
- * - PayloadBytes (std::size_t): 4 bytes [0 bytes dynamic allocation]
- * - Now (std::uint64_t): 8 bytes [0 bytes dynamic allocation]
- * - Deadline (std::uint64_t): 8 bytes [0 bytes dynamic allocation]
- * - HopLimit (Mesh::RemainingHopLimit): 1 bytes [0 bytes dynamic allocation]
- * - ObservedPlan (Plan*): 4 bytes [0 bytes dynamic allocation]
- * - LocalDispatch (Mesh::MeshBroadcastLocalDispatch): 1 bytes [0 bytes dynamic allocation]
- * - Next (Mesh::MeshV1BroadcastDisposition): 1 bytes [0 bytes dynamic allocation]
- * Total Memory: 40 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class Broadcast final {
 public:
     Mesh::ApplicationPrimitiveDescriptor Primitive{};

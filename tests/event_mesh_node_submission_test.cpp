@@ -20,16 +20,7 @@ Mesh::MembershipIncarnation Incarnation(std::uint8_t value) {
     return Mesh::MembershipIncarnation(bytes);
 }
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - Available (bool): 1 bytes [0 bytes dynamic allocation]
- * - Observed (Event::EventMessageId): 8 bytes [0 bytes dynamic allocation]
- * Total Memory: 16 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class Contexts final : public MeshAdapters::IEventMeshNodeTransmissionContextProvider {
 public:
     bool Available{true};

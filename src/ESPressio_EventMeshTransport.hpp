@@ -10,13 +10,7 @@
 namespace ESPressio::MeshAdapters {
 
 /// <summary>Result of transferring borrowed Mesh receive bytes into bounded Event-owned packet storage.</summary>
-/**
- * ESPressio Memory Audit
- * Underlying storage: 1 bytes
- * Total Memory: 1 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 enum class EventMeshInboundOwnershipResult : std::uint8_t {
     Owned,
     Malformed,
@@ -30,13 +24,7 @@ enum class EventMeshInboundOwnershipResult : std::uint8_t {
 /// Mesh delivers borrowed bytes synchronously, while Event may process the packet asynchronously. The implementation
 /// therefore owns the concrete byte capacity and storage policy; MeshAdapters defines no implicit payload limit.
 /// </remarks>
-/**
- * ESPressio Memory Audit
- * Members: none; polymorphic/virtual-base object metadata is included in the total.
- * Total Memory: 4 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class IEventMeshInboundPacketOwner {
 public:
     virtual ~IEventMeshInboundPacketOwner() = default;
@@ -53,13 +41,7 @@ public:
 /// routing composition. Acceptance transfers shared immutable packet ownership; no Event bytes need to be copied per
 /// Mesh recipient.
 /// </remarks>
-/**
- * ESPressio Memory Audit
- * Members: none; polymorphic/virtual-base object metadata is included in the total.
- * Total Memory: 4 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class IEventMeshOutboundSubmission {
 public:
     virtual ~IEventMeshOutboundSubmission() = default;
@@ -81,19 +63,7 @@ public:
 /// necessary to define identity, schema, serialization and direction. Concrete Mesh framing and security remain owned by
 /// Mesh composition, and authenticated Mesh provenance is deliberately not written into Event object state.
 /// </remarks>
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 8 bytes [0 bytes dynamic allocation]
- * Members:
- * - _descriptor (Mesh::PrimitiveReceiverDescriptor): 40 bytes [0 bytes dynamic allocation]
- * - _outboundVersion (Event::EventProtocolVersion): 2 bytes [0 bytes dynamic allocation]
- * - _inboundOwner (IEventMeshInboundPacketOwner&): 4 bytes [0 bytes dynamic allocation]
- * - _outbound (IEventMeshOutboundSubmission&): 4 bytes [0 bytes dynamic allocation]
- * - _receiver (Event::IEventTransportReceiver*): 4 bytes [0 bytes dynamic allocation]
- * Total Memory: 64 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class EventMeshTransport final :
     public Event::IEventTransport,
     public Mesh::IPrimitiveReceiver {

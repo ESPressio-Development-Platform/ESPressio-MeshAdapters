@@ -20,15 +20,7 @@ Mesh::MembershipIncarnation Incarnation(std::uint8_t value) {
     return Mesh::MembershipIncarnation(bytes);
 }
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - Next (MeshAdapters::EventMeshInboundOwnershipResult): 1 bytes [0 bytes dynamic allocation]
- * Total Memory: 8 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class PacketOwner final : public MeshAdapters::IEventMeshInboundPacketOwner {
 public:
     MeshAdapters::EventMeshInboundOwnershipResult Next{
@@ -47,18 +39,7 @@ public:
     }
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - Version (Event::EventProtocolVersion): 2 bytes [0 bytes dynamic allocation]
- * - Packet (Event::EventTransportPacket): 16 bytes [_buffer: shared control block (~12+ bytes; allocate_shared may co-locate object) + object 16 bytes; _buffer: pointee: Capacity * (1 bytes) element storage]
- * - Accept (bool): 1 bytes [0 bytes dynamic allocation]
- * Total Memory: 28 bytes [Packet: _buffer: shared control block (~12+ bytes; allocate_shared may co-locate object) + object 16 bytes; Packet: _buffer: pointee: Capacity * (1 bytes) element storage]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
- * End ESPressio Memory Audit
- */
+
 class Outbound final : public MeshAdapters::IEventMeshOutboundSubmission {
 public:
     Event::EventProtocolVersion Version{0};
@@ -75,17 +56,7 @@ public:
     }
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - Transport (Event::IEventTransport*): 4 bytes [0 bytes dynamic allocation]
- * - Packet (Event::EventTransportPacket): 16 bytes [_buffer: shared control block (~12+ bytes; allocate_shared may co-locate object) + object 16 bytes; _buffer: pointee: Capacity * (1 bytes) element storage]
- * Total Memory: 24 bytes [Packet: _buffer: shared control block (~12+ bytes; allocate_shared may co-locate object) + object 16 bytes; Packet: _buffer: pointee: Capacity * (1 bytes) element storage]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
- * End ESPressio Memory Audit
- */
+
 class Receiver final : public Event::IEventTransportReceiver {
 public:
     Event::IEventTransport* Transport{nullptr};

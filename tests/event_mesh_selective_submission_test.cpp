@@ -47,17 +47,7 @@ Mesh::MeshNodeProfile Profile(
     return result;
 }
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - Context (MeshAdapters::EventMeshSelectiveTransmissionContext): 44 bytes [0 bytes dynamic allocation]
- * - Observed (Event::EventMessageId): 8 bytes [0 bytes dynamic allocation]
- * - Available (bool): 1 bytes [0 bytes dynamic allocation]
- * Total Memory: 60 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class Contexts final : public MeshAdapters::IEventMeshSelectiveTransmissionContextProvider {
 public:
     MeshAdapters::EventMeshSelectiveTransmissionContext Context{};
@@ -75,19 +65,7 @@ public:
     }
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - Version (Event::EventProtocolVersion): 2 bytes [0 bytes dynamic allocation]
- * - Packet (Event::EventTransportPacket): 16 bytes [_buffer: shared control block (~12+ bytes; allocate_shared may co-locate object) + object 16 bytes; _buffer: pointee: Capacity * (1 bytes) element storage]
- * - Calls (std::size_t): 4 bytes [0 bytes dynamic allocation]
- * - Accept (bool): 1 bytes [0 bytes dynamic allocation]
- * Total Memory: 32 bytes [Packet: _buffer: shared control block (~12+ bytes; allocate_shared may co-locate object) + object 16 bytes; Packet: _buffer: pointee: Capacity * (1 bytes) element storage]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
- * End ESPressio Memory Audit
- */
+
 class LocalDispatcher final : public MeshAdapters::IEventMeshLocalPacketDispatcher {
 public:
     Event::EventProtocolVersion Version{0U};
