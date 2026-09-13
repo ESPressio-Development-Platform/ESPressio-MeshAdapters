@@ -91,11 +91,8 @@ jobs:
       - name: Build bounded Mesh-to-A2 ingress correlation contract
         run: >-
           g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
-          -IESPressio-MeshAdapters/src
-          -IESPressio-Mesh/src
-          -IESPressio-Adapters/src
-          -IESPressio-Primitive/src
-          -IESPressio-System/src
+          -IESPressio-MeshAdapters/src -IESPressio-Mesh/src -IESPressio-Adapters/src
+          -IESPressio-Primitive/src -IESPressio-System/src
           ESPressio-MeshAdapters/tests/mesh_adapter_ingress_test.cpp
           -o mesh_adapter_ingress_test -pthread
       - name: Run bounded Mesh-to-A2 ingress correlation contract
@@ -103,11 +100,8 @@ jobs:
       - name: Build neutral A2-to-Mesh lower transport contract
         run: >-
           g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
-          -IESPressio-MeshAdapters/src
-          -IESPressio-Mesh/src
-          -IESPressio-Adapters/src
-          -IESPressio-Primitive/src
-          -IESPressio-System/src
+          -IESPressio-MeshAdapters/src -IESPressio-Mesh/src -IESPressio-Adapters/src
+          -IESPressio-Primitive/src -IESPressio-System/src
           ESPressio-MeshAdapters/tests/mesh_lower_transport_binding_test.cpp
           -o mesh_lower_transport_binding_test -pthread
       - name: Run neutral A2-to-Mesh lower transport contract
@@ -115,20 +109,11 @@ jobs:
       - name: Build real Event family MeshAdapter binding contract
         run: >-
           g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
-          -IESPressio-MeshAdapters/src
-          -IESPressio-Mesh/src
-          -IESPressio-Adapters/src
-          -IESPressio-Primitive/src
-          -IESPressio-System/src
-          -IESPressio-Event/src
-          -IESPressio-Task/src
-          -IESPressio-Task/tests
-          -IESPressio-Threads/src
-          -IESPressio-Timing/src
-          -IESPressio-Timing/tests/stubs
-          -IESPressio-Serializable/src
-          -IESPressio-Units/src
-          -IESPressio-Observable/src
+          -IESPressio-MeshAdapters/src -IESPressio-Mesh/src -IESPressio-Adapters/src
+          -IESPressio-Primitive/src -IESPressio-System/src -IESPressio-Event/src
+          -IESPressio-Task/src -IESPressio-Task/tests -IESPressio-Threads/src
+          -IESPressio-Timing/src -IESPressio-Timing/tests/stubs -IESPressio-Serializable/src
+          -IESPressio-Units/src -IESPressio-Observable/src
           ESPressio-MeshAdapters/tests/event_mesh_adapter_binding_test.cpp
           -o event_mesh_adapter_binding_test -pthread
       - name: Run real Event family MeshAdapter binding contract
@@ -136,20 +121,11 @@ jobs:
       - name: Build local Event-to-A2 outbound contract
         run: >-
           g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
-          -IESPressio-MeshAdapters/src
-          -IESPressio-Mesh/src
-          -IESPressio-Adapters/src
-          -IESPressio-Primitive/src
-          -IESPressio-System/src
-          -IESPressio-Event/src
-          -IESPressio-Task/src
-          -IESPressio-Task/tests
-          -IESPressio-Threads/src
-          -IESPressio-Timing/src
-          -IESPressio-Timing/tests/stubs
-          -IESPressio-Serializable/src
-          -IESPressio-Units/src
-          -IESPressio-Observable/src
+          -IESPressio-MeshAdapters/src -IESPressio-Mesh/src -IESPressio-Adapters/src
+          -IESPressio-Primitive/src -IESPressio-System/src -IESPressio-Event/src
+          -IESPressio-Task/src -IESPressio-Task/tests -IESPressio-Threads/src
+          -IESPressio-Timing/src -IESPressio-Timing/tests/stubs -IESPressio-Serializable/src
+          -IESPressio-Units/src -IESPressio-Observable/src
           ESPressio-MeshAdapters/tests/event_mesh_adapter_outbound_test.cpp
           -o event_mesh_adapter_outbound_test -pthread
       - name: Run local Event-to-A2 outbound contract
@@ -157,21 +133,11 @@ jobs:
       - name: Build real Command family MeshAdapter binding contract
         run: >-
           g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
-          -IESPressio-MeshAdapters/src
-          -IESPressio-Mesh/src
-          -IESPressio-Adapters/src
-          -IESPressio-Primitive/src
-          -IESPressio-System/src
-          -IESPressio-Command/src
-          -IESPressio-Persistence/src
-          -IESPressio-Security/src
-          -IESPressio-Task/src
-          -IESPressio-Task/tests
-          -IESPressio-Threads/src
-          -IESPressio-Timing/src
-          -IESPressio-Timing/tests/stubs
-          -IESPressio-Serializable/src
-          -IESPressio-Units/src
+          -IESPressio-MeshAdapters/src -IESPressio-Mesh/src -IESPressio-Adapters/src
+          -IESPressio-Primitive/src -IESPressio-System/src -IESPressio-Command/src
+          -IESPressio-Persistence/src -IESPressio-Security/src -IESPressio-Task/src
+          -IESPressio-Task/tests -IESPressio-Threads/src -IESPressio-Timing/src
+          -IESPressio-Timing/tests/stubs -IESPressio-Serializable/src -IESPressio-Units/src
           -IESPressio-Observable/src
           ESPressio-MeshAdapters/tests/command_mesh_adapter_binding_test.cpp
           -o command_mesh_adapter_binding_test -pthread
@@ -180,44 +146,37 @@ jobs:
       - name: Build local Command-to-A2 outbound contract
         run: >-
           g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
-          -IESPressio-MeshAdapters/src
-          -IESPressio-Mesh/src
-          -IESPressio-Adapters/src
-          -IESPressio-Primitive/src
-          -IESPressio-System/src
-          -IESPressio-Command/src
-          -IESPressio-Persistence/src
-          -IESPressio-Security/src
-          -IESPressio-Task/src
-          -IESPressio-Task/tests
-          -IESPressio-Threads/src
-          -IESPressio-Timing/src
-          -IESPressio-Timing/tests/stubs
-          -IESPressio-Serializable/src
-          -IESPressio-Units/src
+          -IESPressio-MeshAdapters/src -IESPressio-Mesh/src -IESPressio-Adapters/src
+          -IESPressio-Primitive/src -IESPressio-System/src -IESPressio-Command/src
+          -IESPressio-Persistence/src -IESPressio-Security/src -IESPressio-Task/src
+          -IESPressio-Task/tests -IESPressio-Threads/src -IESPressio-Timing/src
+          -IESPressio-Timing/tests/stubs -IESPressio-Serializable/src -IESPressio-Units/src
           -IESPressio-Observable/src
           ESPressio-MeshAdapters/tests/command_mesh_adapter_outbound_test.cpp
           -o command_mesh_adapter_outbound_test -pthread
       - name: Run local Command-to-A2 outbound contract
         run: ./command_mesh_adapter_outbound_test
+      - name: Build Command A2 terminal delivery-failure contract
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
+          -IESPressio-MeshAdapters/src -IESPressio-Mesh/src -IESPressio-Adapters/src
+          -IESPressio-Primitive/src -IESPressio-System/src -IESPressio-Command/src
+          -IESPressio-Persistence/src -IESPressio-Security/src -IESPressio-Task/src
+          -IESPressio-Task/tests -IESPressio-Threads/src -IESPressio-Timing/src
+          -IESPressio-Timing/tests/stubs -IESPressio-Serializable/src -IESPressio-Units/src
+          -IESPressio-Observable/src
+          ESPressio-MeshAdapters/tests/command_mesh_adapter_delivery_failure_test.cpp
+          -o command_mesh_adapter_delivery_failure_test -pthread
+      - name: Run Command A2 terminal delivery-failure contract
+        run: ./command_mesh_adapter_delivery_failure_test
       - name: Build real State family MeshAdapter binding contract
         run: >-
           g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
-          -IESPressio-MeshAdapters/src
-          -IESPressio-Mesh/src
-          -IESPressio-Adapters/src
-          -IESPressio-Primitive/src
-          -IESPressio-System/src
-          -IESPressio-State/src
-          -IESPressio-Persistence/src
-          -IESPressio-Task/src
-          -IESPressio-Task/tests
-          -IESPressio-Threads/src
-          -IESPressio-Timing/src
-          -IESPressio-Timing/tests/stubs
-          -IESPressio-Serializable/src
-          -IESPressio-Units/src
-          -IESPressio-Observable/src
+          -IESPressio-MeshAdapters/src -IESPressio-Mesh/src -IESPressio-Adapters/src
+          -IESPressio-Primitive/src -IESPressio-System/src -IESPressio-State/src
+          -IESPressio-Persistence/src -IESPressio-Task/src -IESPressio-Task/tests
+          -IESPressio-Threads/src -IESPressio-Timing/src -IESPressio-Timing/tests/stubs
+          -IESPressio-Serializable/src -IESPressio-Units/src -IESPressio-Observable/src
           ESPressio-MeshAdapters/tests/state_mesh_adapter_binding_test.cpp
           -o state_mesh_adapter_binding_test -pthread
       - name: Run real State family MeshAdapter binding contract
