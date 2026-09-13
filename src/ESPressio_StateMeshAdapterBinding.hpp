@@ -146,7 +146,7 @@ class StateMeshAdapterFamilyBinding final {
     using EncodeThunk=State::StateWireResult(*)(const void*,std::uint8_t*,std::size_t);
     using ExhaustionThunk=State::StateRemoteStatus(*)(
         TStateRuntime&,const State::StateConvergenceHandle&) noexcept;
-    using ServiceThunk=bool(*)(TStateRuntime&) noexcept;
+    using ServiceThunk=State::StateTransportAdmission(*)(TStateRuntime&) noexcept;
 
     struct Entry final {
         State::StateTypeId TypeId{};
@@ -592,9 +592,10 @@ public:
 
         for(std::size_t i=0;i<_count;++i) {
             auto& entry=_entries[i];
-            if(entry.Used&&entry.Runtime&&entry.ServiceLatest&&
-               entry.ServiceLatest(*entry.Runtime))
-                progressed=true;
+            if(entry.Used&&entry.Runtime&&entry.ServiceLatest) {
+                const auto admitted=entry.ServiceLatest(*entry.Runtime);
+                if(admitted) progressed=true;
+            }
         }
         return progressed;
     }
