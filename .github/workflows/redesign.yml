@@ -33,6 +33,36 @@ jobs:
           repository: ESPressio-Development-Platform/ESPressio-System
           ref: primitives_redesign
           path: ESPressio-System
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Event
+          ref: primitives_redesign
+          path: ESPressio-Event
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Task
+          ref: primitives_redesign
+          path: ESPressio-Task
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Threads
+          ref: primitives_redesign
+          path: ESPressio-Threads
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Timing
+          ref: primitives_redesign
+          path: ESPressio-Timing
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Serializable
+          ref: primitives_redesign
+          path: ESPressio-Serializable
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Units
+          ref: primitives_redesign
+          path: ESPressio-Units
       - name: Build bounded Mesh-to-A2 ingress correlation contract
         run: >-
           g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
@@ -45,3 +75,23 @@ jobs:
           -o mesh_adapter_ingress_test -pthread
       - name: Run bounded Mesh-to-A2 ingress correlation contract
         run: ./mesh_adapter_ingress_test
+      - name: Build real Event family MeshAdapter binding contract
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
+          -IESPressio-MeshAdapters/src
+          -IESPressio-Mesh/src
+          -IESPressio-Adapters/src
+          -IESPressio-Primitive/src
+          -IESPressio-System/src
+          -IESPressio-Event/src
+          -IESPressio-Task/src
+          -IESPressio-Task/tests
+          -IESPressio-Threads/src
+          -IESPressio-Timing/src
+          -IESPressio-Timing/tests/stubs
+          -IESPressio-Serializable/src
+          -IESPressio-Units/src
+          ESPressio-MeshAdapters/tests/event_mesh_adapter_binding_test.cpp
+          -o event_mesh_adapter_binding_test -pthread
+      - name: Run real Event family MeshAdapter binding contract
+        run: ./event_mesh_adapter_binding_test
