@@ -91,7 +91,7 @@ int main() {
     std::array<std::uint8_t,4> bytes{{1,2,3,4}};
     const Adapters::AdapterRecordIdentity record{
         Adapters::AdapterDirection::Outbound,
-        Adapters::AdapterCapacityDomainKind::ResponsivePrivate,
+        Adapters::CapacityDomainKind::ResponsivePrivate,
         2,
         9
     };
