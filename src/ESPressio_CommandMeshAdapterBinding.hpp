@@ -16,7 +16,6 @@
 
 namespace ESPressio::MeshAdapters {
 
-/// <summary>Configuration result for one frozen Command family Mesh/A2 binding.</summary>
 enum class CommandMeshAdapterBindingStatus : std::uint8_t {
     Success=0,
     Frozen,
@@ -72,38 +71,86 @@ constexpr Adapters::AdapterResourceStatus MapCommandWireEncode(Command::CommandW
     return Adapters::AdapterResourceStatus::InvalidConfiguration;
 }
 
+constexpr Command::CommandOutboundAdmission MapCommandOutboundSubmission(
+    Adapters::AdapterSubmissionDisposition disposition) noexcept {
+    using A=Adapters::AdapterSubmissionDisposition;
+    using C=Command::CommandOutboundAdmissionStatus;
+    switch(disposition) {
+        case A::Accepted: return {C::Accepted};
+        case A::Busy:
+        case A::ResourceUnavailable: return {C::CapacityUnavailable};
+        case A::NotRunning: return {C::Quiesced};
+        case A::RepresentationTooLarge:
+        case A::Unsupported:
+        case A::InvalidConfiguration:
+        case A::Rejected:
+        case A::Malformed: return {C::InvalidTarget};
+    }
+    return {C::InvalidTarget};
+}
+
+constexpr bool SamePolicy(
+    const Primitive::PrimitivePolicyDescriptor& left,
+    const Primitive::PrimitivePolicyDescriptor& right) noexcept {
+    return left.Evidence==right.Evidence &&
+           left.Terminal==right.Terminal &&
+           left.MaximumResidenceNanoseconds==right.MaximumResidenceNanoseconds &&
+           left.MaximumAttempts==right.MaximumAttempts &&
+           left.MaximumAdapterAdmissionWaitNanoseconds==right.MaximumAdapterAdmissionWaitNanoseconds &&
+           left.MinimumRetrySpacingNanoseconds==right.MinimumRetrySpacingNanoseconds &&
+           left.MaximumRetrySpacingNanoseconds==right.MaximumRetrySpacingNanoseconds;
+}
+
+template<class TFormat>
+constexpr Command::CommandPayloadFormat CommandPayloadFormatFor() noexcept {
+    if constexpr(std::is_same_v<TFormat,Serializable::DirectBinary>) return Command::CommandPayloadFormat::DirectBinary;
+    else if constexpr(std::is_same_v<TFormat,Serializable::CBOR>) return Command::CommandPayloadFormat::CBOR;
+    else {
+        static_assert(std::is_same_v<TFormat,Serializable::JSON>,"Unsupported Command MeshAdapter format");
+        return Command::CommandPayloadFormat::JSON;
+    }
+}
+
 } // namespace Detail
 
 /// <summary>
-/// Frozen Command-family Mesh binding preserving Command execution/replay/response semantics while A2 owns byte pursuit.
+/// Frozen Command-family Mesh binding preserving Command execution/replay/requester semantics while A2 owns byte pursuit.
 /// </summary>
 /// <remarks>
-/// The binding has no Command registry, response worker, retry loop or dynamic callable. Per-Type entries are fixed before
-/// Freeze and delegate inbound work to the real Command::Runtime. Response-bearing inbound requests receive a bounded
-/// pre-reserved CommandRemoteResponseDestination. When Command later routes a retained typed response to that destination,
-/// the destination synchronously offers it to A2; successful A2 ownership ends Command-side response storage ownership and
-/// A2 then owns the response P2 delivery campaign. Generic Mesh broadcast rejects every response and every response-bearing
-/// request, and permits a no-response request only when its frozen request policy is NoRemoteEvidence.
+/// Type wire/policy metadata may be configured before Command::Runtime initialization so Command can validate its outbound
+/// binding and reserve durable recovered-response destinations during startup. The real inbound Runtime binding is attached
+/// after Command initialization and before Freeze. Running-time mutation is forbidden. Locally-originated requests and
+/// executor responses are synchronously encoded into A2-owned bytes; no Command request/response object survives that handoff.
+/// Response-bearing local requests retain only their trivially-copyable CommandRequestDeliveryToken in a bounded campaign
+/// slot until A2 returns terminal feedback. A2 remains the sole pursuit/retry owner.
 /// </remarks>
-template<class TAdapterRuntime,std::size_t TMaximumTypes,std::size_t TMaximumResponseDestinations>
+template<class TAdapterRuntime,std::size_t TMaximumTypes,std::size_t TMaximumResponseDestinations,
+         std::size_t TMaximumRequestCampaigns=TMaximumResponseDestinations>
 class CommandMeshAdapterFamilyBinding final {
     static_assert(TMaximumTypes>0,"Command MeshAdapter Type capacity must be non-zero");
     static_assert(TMaximumResponseDestinations>0,"Command MeshAdapter response destination capacity must be non-zero");
+    static_assert(TMaximumRequestCampaigns>0,"Command MeshAdapter request campaign capacity must be non-zero");
     static_assert(TMaximumResponseDestinations<=UINT16_MAX,"Command response destination capacity must fit index");
+    static_assert(TMaximumRequestCampaigns<=UINT16_MAX,"Command request campaign capacity must fit correlation index");
 
-    struct OutboundResponseSource final {
+    enum class OutboundKind : std::uint8_t { Request=1,Response=2 };
+    struct OutboundSource final {
+        OutboundKind Kind{OutboundKind::Request};
         std::size_t EntryIndex{0};
+        const void* Request{nullptr};
         Command::CommandExecutionKey Key{};
         System::DeviceRuntimeIdentity Executor{};
         Command::CommandResponseDisposition Disposition{Command::CommandResponseDisposition::Succeeded};
         const void* Payload{nullptr};
     };
 
+    using EncodeRequestThunk=Command::CommandWireResult(*)(const void*,std::uint8_t*,std::size_t);
     using EncodeResponseThunk=Command::CommandWireResult(*)(
-        const OutboundResponseSource&,std::uint8_t*,std::size_t);
+        const OutboundSource&,std::uint8_t*,std::size_t);
 
     struct Entry final {
         Command::CommandTypeId TypeId{};
+        Command::CommandPayloadFormat Format{Command::CommandPayloadFormat::DirectBinary};
         Command::Runtime* Runtime{nullptr};
         Command::CommandInboundBinding Inbound{};
         Primitive::PrimitivePolicyDescriptor RequestPolicy{};
@@ -112,6 +159,7 @@ class CommandMeshAdapterFamilyBinding final {
         Mesh::MeshRelayServiceClass ResponseService{Mesh::MeshRelayServiceClass::Responsive};
         std::size_t MaximumRequestWireBytes{0};
         std::size_t MaximumResponseWireBytes{0};
+        EncodeRequestThunk EncodeRequest{nullptr};
         EncodeResponseThunk EncodeResponse{nullptr};
         bool ResponseBearing{false};
         bool Used{false};
@@ -125,18 +173,30 @@ class CommandMeshAdapterFamilyBinding final {
         Adapters::AdapterRouteToken Route{};
     };
 
+    enum class CampaignState : std::uint8_t { Free=0,Reserved };
+    struct RequestCampaign final {
+        CampaignState State{CampaignState::Free};
+        std::uint64_t Generation{0};
+        Command::CommandRequestDeliveryToken Token{};
+        bool RequiresDestinationAdmission{false};
+    };
+
+    static constexpr std::uint64_t RequestCorrelationFlag=std::uint64_t{1}<<63U;
+    static constexpr std::uint64_t MaximumPackedGeneration=(std::uint64_t{1}<<47U)-1U;
+
     TAdapterRuntime* _adapter{nullptr};
     MeshRouteBinding _routes{};
     std::array<Entry,TMaximumTypes> _entries{};
     std::array<ResponseDestination,TMaximumResponseDestinations> _destinations{};
+    std::array<RequestCampaign,TMaximumRequestCampaigns> _campaigns{};
     std::size_t _count{0};
     std::size_t _maximumInboundBytes{0};
     std::size_t _maximumOutboundBytes{0};
     std::uint8_t _serviceMask{0};
     bool _requiresDestinationEvidence{false};
-    bool _hasResponseBearing{false};
     bool _frozen{false};
     std::mutex _destinationMutex{};
+    std::mutex _campaignMutex{};
 
     static constexpr std::uint8_t ServiceBit(Mesh::MeshRelayServiceClass service) noexcept {
         const auto mapped=ToAdapterServiceClass(service);
@@ -155,8 +215,11 @@ class CommandMeshAdapterFamilyBinding final {
         return entry?static_cast<std::size_t>(entry-_entries.data()):TMaximumTypes;
     }
 
-    static std::uint64_t Correlation(std::size_t slot,std::uint64_t generation) noexcept {
-        return (generation<<16U)|static_cast<std::uint64_t>(slot+1U);
+    static std::uint64_t ResponseCorrelation(std::size_t slot,std::uint64_t generation) noexcept {
+        return ((generation&MaximumPackedGeneration)<<16U)|static_cast<std::uint64_t>(slot+1U);
+    }
+    static std::uint64_t RequestCorrelation(std::size_t slot,std::uint64_t generation) noexcept {
+        return RequestCorrelationFlag|ResponseCorrelation(slot,generation);
     }
 
     Command::CommandRemoteResponseDestination ReserveResponseDestination(
@@ -166,9 +229,8 @@ class CommandMeshAdapterFamilyBinding final {
         if(!lock.owns_lock()) return {};
         for(std::size_t i=0;i<_destinations.size();++i) {
             auto& slot=_destinations[i];
-            if(slot.State!=DestinationState::Free||slot.Generation==std::numeric_limits<std::uint64_t>::max()) continue;
+            if(slot.State!=DestinationState::Free||slot.Generation>=MaximumPackedGeneration) continue;
             ++slot.Generation;
-            if(slot.Generation==0) continue;
             slot.State=DestinationState::Reserved;
             slot.EntryIndex=entryIndex;
             slot.Route=route;
@@ -185,6 +247,60 @@ class CommandMeshAdapterFamilyBinding final {
         slot.State=DestinationState::Free;
         slot.EntryIndex=0;
         slot.Route={};
+    }
+
+    bool ReserveRequestCampaign(
+        Command::CommandRequestDeliveryToken token,bool requiresDestinationAdmission,
+        std::uint64_t& correlation) noexcept {
+        correlation=0;
+        if(!token) return true;
+        std::unique_lock<std::mutex> lock(_campaignMutex,std::try_to_lock);
+        if(!lock.owns_lock()) return false;
+        for(std::size_t i=0;i<_campaigns.size();++i) {
+            auto& slot=_campaigns[i];
+            if(slot.State!=CampaignState::Free||slot.Generation>=MaximumPackedGeneration) continue;
+            ++slot.Generation;
+            slot.State=CampaignState::Reserved;
+            slot.Token=token;
+            slot.RequiresDestinationAdmission=requiresDestinationAdmission;
+            correlation=RequestCorrelation(i,slot.Generation);
+            return true;
+        }
+        return false;
+    }
+
+    void ReleaseRequestCampaign(std::uint64_t correlation,bool terminalFeedback,
+                                const Adapters::AdapterFamilyFeedback* feedback=nullptr) noexcept {
+        if((correlation&RequestCorrelationFlag)==0) return;
+        const auto rawSlot=static_cast<std::uint16_t>(correlation&0xffffU);
+        if(rawSlot==0) return;
+        const auto index=static_cast<std::size_t>(rawSlot-1U);
+        const auto generation=(correlation>>16U)&MaximumPackedGeneration;
+        Command::CommandRequestDeliveryToken token{};
+        bool requiresDestinationAdmission=false;
+        {
+            std::lock_guard<std::mutex> lock(_campaignMutex);
+            if(index>=_campaigns.size()) return;
+            auto& slot=_campaigns[index];
+            if(slot.State!=CampaignState::Reserved||slot.Generation!=generation) return;
+            token=slot.Token;
+            requiresDestinationAdmission=slot.RequiresDestinationAdmission;
+            slot.State=CampaignState::Free;
+            slot.Token={};
+            slot.RequiresDestinationAdmission=false;
+        }
+        if(!terminalFeedback||!feedback||!token) return;
+        const bool success=requiresDestinationAdmission
+            ? feedback->Evidence==Adapters::AdapterEvidence::DestinationPrimitiveAdmission &&
+              Primitive::EstablishesDestinationAdmission(feedback->Admission)
+            : static_cast<std::uint8_t>(feedback->Evidence)>=
+              static_cast<std::uint8_t>(Adapters::AdapterEvidence::LowerTransportAccepted);
+        if(!success) (void)token.PublishFailure();
+    }
+
+    static void FeedbackOutbound(void* owner,const Adapters::AdapterFamilyFeedback& feedback) noexcept {
+        static_cast<CommandMeshAdapterFamilyBinding*>(owner)->ReleaseRequestCampaign(
+            feedback.Correlation,true,&feedback);
     }
 
     static bool AcceptResponseThunk(
@@ -223,8 +339,8 @@ class CommandMeshAdapterFamilyBinding final {
             return false;
         }
 
-        const OutboundResponseSource source{entryIndex,key,executor,disposition,payload.Payload()};
-        const auto correlation=Correlation(index,generation);
+        const OutboundSource source{OutboundKind::Response,entryIndex,nullptr,key,executor,disposition,payload.Payload()};
+        const auto correlation=ResponseCorrelation(index,generation);
         const auto submitted=_adapter->SubmitOutbound(
             Primitive::FamilyIds::Command,ToAdapterServiceClass(entry.ResponseService),Command::CommandProtocolVersion,
             &source,route,entry.ResponsePolicy,correlation);
@@ -238,12 +354,19 @@ class CommandMeshAdapterFamilyBinding final {
         auto& self=*static_cast<CommandMeshAdapterFamilyBinding*>(owner);
         if(!self._frozen||protocol!=Command::CommandProtocolVersion||!source||!output.Data)
             return {Adapters::AdapterResourceStatus::InvalidConfiguration,0};
-        const auto& response=*static_cast<const OutboundResponseSource*>(source);
-        if(response.EntryIndex>=self._count) return {Adapters::AdapterResourceStatus::InvalidConfiguration,0};
-        const auto& entry=self._entries[response.EntryIndex];
-        if(!entry.Used||!entry.ResponseBearing||!entry.EncodeResponse)
-            return {Adapters::AdapterResourceStatus::InvalidConfiguration,0};
-        const auto encoded=entry.EncodeResponse(response,output.Data,output.Capacity);
+        const auto& outbound=*static_cast<const OutboundSource*>(source);
+        if(outbound.EntryIndex>=self._count) return {Adapters::AdapterResourceStatus::InvalidConfiguration,0};
+        const auto& entry=self._entries[outbound.EntryIndex];
+        Command::CommandWireResult encoded{};
+        if(outbound.Kind==OutboundKind::Request) {
+            if(!entry.Used||!entry.EncodeRequest||!outbound.Request)
+                return {Adapters::AdapterResourceStatus::InvalidConfiguration,0};
+            encoded=entry.EncodeRequest(outbound.Request,output.Data,output.Capacity);
+        } else if(outbound.Kind==OutboundKind::Response) {
+            if(!entry.Used||!entry.ResponseBearing||!entry.EncodeResponse)
+                return {Adapters::AdapterResourceStatus::InvalidConfiguration,0};
+            encoded=entry.EncodeResponse(outbound,output.Data,output.Capacity);
+        } else return {Adapters::AdapterResourceStatus::InvalidConfiguration,0};
         return {Detail::MapCommandWireEncode(encoded.Status),encoded.Bytes};
     }
 
@@ -349,10 +472,10 @@ public:
     CommandMeshAdapterFamilyBinding(const CommandMeshAdapterFamilyBinding&)=delete;
     CommandMeshAdapterFamilyBinding& operator=(const CommandMeshAdapterFamilyBinding&)=delete;
 
-    /// <summary>Adds one real initialized Command Runtime inbound binding before freeze.</summary>
+    /// <summary>Configures immutable Type/format/policy/encoder metadata before Command Runtime initialization.</summary>
     template<class TCommand,class TFormat>
-    CommandMeshAdapterBindingStatus BindType(
-        Command::Runtime& runtime,Mesh::MeshRelayServiceClass requestService,
+    CommandMeshAdapterBindingStatus ConfigureType(
+        Mesh::MeshRelayServiceClass requestService,
         Mesh::MeshRelayServiceClass responseService=Mesh::MeshRelayServiceClass::Responsive) noexcept {
         static_assert(TCommand::IsTransmissibleCommand&&TCommand::ValidateTier(),
                       "Mesh Command binding requires a TransmissibleCommand");
@@ -364,45 +487,137 @@ public:
             return CommandMeshAdapterBindingStatus::InvalidService;
         if(Find(TCommand::TypeId)) return CommandMeshAdapterBindingStatus::DuplicateType;
         if(_count==_entries.size()) return CommandMeshAdapterBindingStatus::ResourceUnavailable;
-        const auto inbound=runtime.template BindInbound<TCommand,TFormat>();
-        if(!inbound) return CommandMeshAdapterBindingStatus::InvalidBinding;
 
-        auto& entry=_entries[_count];
+        auto& entry=_entries[_count++];
         entry.TypeId=TCommand::TypeId;
-        entry.Runtime=&runtime;
-        entry.Inbound=inbound;
+        entry.Format=Detail::CommandPayloadFormatFor<TFormat>();
         entry.RequestPolicy=Primitive::PrimitivePolicyContract<typename TCommand::RequestDeliveryPolicy>::Descriptor();
         entry.RequestService=requestService;
         entry.MaximumRequestWireBytes=Command::MaximumCompleteRequestWireBytes<TCommand,TFormat>;
+        entry.EncodeRequest=[](const void* request,std::uint8_t* output,std::size_t capacity) {
+            if(!request) return Command::CommandWireResult{};
+            return Command::EncodeCommandRequest<TCommand,TFormat>(*static_cast<const TCommand*>(request),output,capacity);
+        };
         entry.ResponseBearing=!std::is_same_v<typename TCommand::ResponseType,Command::NoCommandResponse>;
         if constexpr(!std::is_same_v<typename TCommand::ResponseType,Command::NoCommandResponse>) {
             entry.ResponsePolicy=Primitive::PrimitivePolicyContract<typename TCommand::ResponseDeliveryPolicy>::Descriptor();
             entry.ResponseService=responseService;
             entry.MaximumResponseWireBytes=Command::MaximumCompleteResponseWireBytes<TCommand,TFormat>;
-            entry.EncodeResponse=[](const OutboundResponseSource& source,std::uint8_t* output,std::size_t capacity) {
+            entry.EncodeResponse=[](const OutboundSource& source,std::uint8_t* output,std::size_t capacity) {
                 return Command::EncodeCommandResponse<TCommand,TFormat>(
                     source.Key,source.Executor,source.Disposition,
                     static_cast<const typename TCommand::ResponseType*>(source.Payload),output,capacity);
             };
-            _hasResponseBearing=true;
             if(entry.MaximumResponseWireBytes>_maximumOutboundBytes) _maximumOutboundBytes=entry.MaximumResponseWireBytes;
             _serviceMask=static_cast<std::uint8_t>(_serviceMask|ServiceBit(responseService));
             _requiresDestinationEvidence=_requiresDestinationEvidence||entry.ResponsePolicy.Evidence!=0U;
         }
         entry.Used=true;
-        ++_count;
         if(entry.MaximumRequestWireBytes>_maximumInboundBytes) _maximumInboundBytes=entry.MaximumRequestWireBytes;
+        if(entry.MaximumRequestWireBytes>_maximumOutboundBytes) _maximumOutboundBytes=entry.MaximumRequestWireBytes;
         if(entry.MaximumResponseWireBytes>_maximumInboundBytes) _maximumInboundBytes=entry.MaximumResponseWireBytes;
         _serviceMask=static_cast<std::uint8_t>(_serviceMask|ServiceBit(requestService));
+        _requiresDestinationEvidence=_requiresDestinationEvidence||entry.RequestPolicy.Evidence!=0U;
         return CommandMeshAdapterBindingStatus::Success;
     }
 
-    /// <summary>Freezes the non-empty Type table and validates reply routing for every response-bearing Type.</summary>
+    /// <summary>Attaches the real initialized Command Runtime inbound binding to one configured Type.</summary>
+    template<class TCommand,class TFormat>
+    CommandMeshAdapterBindingStatus AttachRuntime(Command::Runtime& runtime) noexcept {
+        if(_frozen) return CommandMeshAdapterBindingStatus::Frozen;
+        auto* entry=Find(TCommand::TypeId);
+        if(!entry||entry->Format!=Detail::CommandPayloadFormatFor<TFormat>()||entry->Runtime||entry->Inbound)
+            return CommandMeshAdapterBindingStatus::InvalidBinding;
+        const auto inbound=runtime.template BindInbound<TCommand,TFormat>();
+        if(!inbound) return CommandMeshAdapterBindingStatus::InvalidBinding;
+        entry->Runtime=&runtime;
+        entry->Inbound=inbound;
+        return CommandMeshAdapterBindingStatus::Success;
+    }
+
+    /// <summary>Compatibility composition helper: configure if absent, then attach an initialized Runtime.</summary>
+    template<class TCommand,class TFormat>
+    CommandMeshAdapterBindingStatus BindType(
+        Command::Runtime& runtime,Mesh::MeshRelayServiceClass requestService,
+        Mesh::MeshRelayServiceClass responseService=Mesh::MeshRelayServiceClass::Responsive) noexcept {
+        auto* entry=Find(TCommand::TypeId);
+        if(!entry) {
+            const auto configured=ConfigureType<TCommand,TFormat>(requestService,responseService);
+            if(configured!=CommandMeshAdapterBindingStatus::Success) return configured;
+            entry=Find(TCommand::TypeId);
+        } else if(entry->RequestService!=requestService||
+                  (entry->ResponseBearing&&entry->ResponseService!=responseService)) {
+            return CommandMeshAdapterBindingStatus::InvalidBinding;
+        }
+        return AttachRuntime<TCommand,TFormat>(runtime);
+    }
+
+    /// <summary>Validates the Command-owned outbound contract against preconfigured frozen-shape metadata.</summary>
+    template<class TCommand,class TFormat>
+    bool ValidateOutboundContract(const Command::CommandOutboundContract& contract) const noexcept {
+        const auto* entry=Find(TCommand::TypeId);
+        if(!entry||!entry->Used||!entry->EncodeRequest||!_routes.IsValid()) return false;
+        if(contract.TypeId!=entry->TypeId||contract.Format!=Detail::CommandPayloadFormatFor<TFormat>()||
+           contract.MaximumRequestWireBytes!=entry->MaximumRequestWireBytes||!contract.RequestDeliveryPolicy||
+           !Detail::SamePolicy(*contract.RequestDeliveryPolicy,entry->RequestPolicy)) return false;
+        if(entry->ResponseBearing) {
+            return contract.MaximumResponseWireBytes==entry->MaximumResponseWireBytes&&
+                   contract.ResponseDeliveryPolicy&&
+                   Detail::SamePolicy(*contract.ResponseDeliveryPolicy,entry->ResponsePolicy);
+        }
+        return contract.MaximumResponseWireBytes==0&&contract.ResponseDeliveryPolicy==nullptr;
+    }
+
+    /// <summary>Synchronously transfers one locally-originated typed Command request into A2 ownership.</summary>
+    template<class TCommand>
+    Command::CommandOutboundAdmission SubmitRequest(
+        System::DeviceIdentifier target,const Command::CommandRequestLease<TCommand>& request,
+        Command::CommandRequestDeliveryToken token) noexcept {
+        if(!_frozen||!_adapter||!target||!request) return {Command::CommandOutboundAdmissionStatus::Quiesced};
+        auto* entry=Find(TCommand::TypeId);
+        if(!entry||!entry->EncodeRequest||request.Facts().Key.TypeId!=entry->TypeId)
+            return {Command::CommandOutboundAdmissionStatus::InvalidTarget};
+        Adapters::AdapterRouteToken route{};
+        if(!_routes.TryResolveNode(target,route)) return {Command::CommandOutboundAdmissionStatus::InvalidTarget};
+
+        std::uint64_t correlation=request.Facts().Key.Id.Value();
+        if(token&&!ReserveRequestCampaign(token,entry->RequestPolicy.Evidence!=0U,correlation))
+            return {Command::CommandOutboundAdmissionStatus::CapacityUnavailable};
+        const OutboundSource source{OutboundKind::Request,IndexOf(entry),&request.Request(),{}, {},
+                                    Command::CommandResponseDisposition::Succeeded,nullptr};
+        const auto submitted=_adapter->SubmitOutbound(
+            Primitive::FamilyIds::Command,ToAdapterServiceClass(entry->RequestService),Command::CommandProtocolVersion,
+            &source,route,entry->RequestPolicy,correlation);
+        if(submitted!=Adapters::AdapterSubmissionDisposition::Accepted&&token)
+            ReleaseRequestCampaign(correlation,false,nullptr);
+        return Detail::MapCommandOutboundSubmission(submitted);
+    }
+
+    /// <summary>Pre-reserves the Mesh route/destination used to replay one durable executor response after reboot.</summary>
+    template<class TCommand>
+    Command::CommandRemoteResponseDestination ReserveRecoveredResponse(
+        const Command::CommandExecutionKey& key) noexcept {
+        auto* entry=Find(TCommand::TypeId);
+        if(!entry||!entry->ResponseBearing||!entry->EncodeResponse||key.TypeId!=entry->TypeId||!key.IsValid()) return {};
+        Adapters::AdapterRouteToken route{};
+        if(!_routes.TryResolveNode(key.OriginDevice,route)) return {};
+        return ReserveResponseDestination(IndexOf(entry),route);
+    }
+
+    /// <summary>Releases one still-reserved recovered-response destination during Command rollback/shutdown.</summary>
+    void ReleaseRecoveredResponse(Command::CommandRemoteResponseDestination destination) noexcept {
+        if(!destination||destination.Context!=this||destination.Accept!=&CommandMeshAdapterFamilyBinding::AcceptResponseThunk) return;
+        ReleaseResponseDestination(destination.Index,destination.Generation);
+    }
+
     CommandMeshAdapterBindingStatus Freeze() noexcept {
         if(_frozen) return CommandMeshAdapterBindingStatus::Frozen;
-        if(_count==0||_maximumInboundBytes==0||_serviceMask==0||_adapter==nullptr)
+        if(_count==0||_maximumInboundBytes==0||_maximumOutboundBytes==0||_serviceMask==0||_adapter==nullptr)
             return CommandMeshAdapterBindingStatus::InvalidBinding;
-        if(_hasResponseBearing&&!_routes.IsValid()) return CommandMeshAdapterBindingStatus::RouteUnavailable;
+        if(!_routes.IsValid()) return CommandMeshAdapterBindingStatus::RouteUnavailable;
+        for(std::size_t i=0;i<_count;++i)
+            if(!_entries[i].Used||!_entries[i].Runtime||!_entries[i].Inbound||!_entries[i].EncodeRequest)
+                return CommandMeshAdapterBindingStatus::InvalidBinding;
         _frozen=true;
         return CommandMeshAdapterBindingStatus::Success;
     }
@@ -410,7 +625,6 @@ public:
     bool IsFrozen() const noexcept { return _frozen; }
     std::size_t TypeCount() const noexcept { return _count; }
 
-    /// <summary>Returns the frozen A2 Command family descriptor.</summary>
     Adapters::AdapterBindingDescriptor AdapterBinding() noexcept {
         if(!_frozen) return {};
         Adapters::AdapterBindingDescriptor binding{};
@@ -423,11 +637,11 @@ public:
         binding.RequiresValidatedOriginalSource=true;
         binding.Owner=this;
         binding.AdmitInbound=&CommandMeshAdapterFamilyBinding::AdmitInbound;
-        binding.EncodeOutbound=_maximumOutboundBytes?&CommandMeshAdapterFamilyBinding::EncodeOutbound:nullptr;
+        binding.EncodeOutbound=&CommandMeshAdapterFamilyBinding::EncodeOutbound;
+        binding.Feedback=&CommandMeshAdapterFamilyBinding::FeedbackOutbound;
         return binding;
     }
 
-    /// <summary>Returns the authenticated Mesh ingress resolver paired with the frozen Command binding.</summary>
     MeshAdapterPolicyBinding MeshPolicyBinding() noexcept {
         if(!_frozen) return {};
         return {Primitive::FamilyIds::Command,{Command::CommandProtocolVersion,Command::CommandProtocolVersion},
