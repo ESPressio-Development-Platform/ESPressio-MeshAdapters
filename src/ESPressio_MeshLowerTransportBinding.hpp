@@ -113,10 +113,9 @@ constexpr std::uint8_t ToAdapterServiceMask(std::uint8_t meshMask) noexcept {
 /// Neutral A2 LowerTransportBinding backed by the existing Mesh application lifecycle and managed-Radio machinery.
 /// </summary>
 /// <remarks>
-/// This object stores only two non-owning pointers/bindings. A2 remains the sole owner of Primitive pursuit/retry state;
-/// Mesh remains the sole owner of membership, route/forwarding lifecycle and destination-admission evidence; Radio R3
-/// remains the sole physical-fragment arbiter. Deferred completion is generation-correlated back into the exact A2
-/// record through AdapterRuntime::CompleteTransport. No application callback is executed by this shim.
+/// Family/version supplied by A2 are intentionally ignored here: the existing Mesh application lifecycle already owns
+/// its family framing/binding. They are present in the neutral lower-transport seam so transports such as direct Radio
+/// can construct their own locked envelope without making family encoders transport-specific.
 /// </remarks>
 template<class TAdapterRuntime>
 class MeshLowerTransportBinding final {
@@ -138,6 +137,8 @@ class MeshLowerTransportBinding final {
     static Adapters::LowerTransportSubmitResult SubmitThunk(
         void* owner,
         Adapters::AdapterRecordIdentity record,
+        Primitive::PrimitiveFamilyId,
+        Primitive::PrimitiveProtocolVersion,
         Adapters::AdapterServiceClass service,
         Adapters::AdapterByteView bytes,
         Adapters::AdapterRouteToken route) noexcept {
@@ -178,7 +179,6 @@ public:
         return _runtime!=nullptr && static_cast<bool>(_mesh) && ToAdapterServiceMask(_mesh.ServiceClassMask)!=0;
     }
 
-    /// <summary>Returns the generic frozen A2 lower-transport descriptor for this Mesh composition.</summary>
     Adapters::LowerTransportBinding AdapterBinding() noexcept {
         if(!IsValid()) return {};
         Adapters::LowerTransportBinding binding{};
