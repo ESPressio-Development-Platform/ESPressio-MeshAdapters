@@ -161,6 +161,7 @@ jobs:
           from pathlib import Path
           path = Path("ESPressio-MeshAdapters/tests/command_mesh_adapter_binding_test.cpp")
           text = path.read_text()
+          text = text.replace("#include <ESPressio_Serializable.hpp>", "#include <ESPressio_SerializationMacros.hpp>", 1)
           anchor = "    auto broadcastReply=replyContext;broadcastReply.Broadcast=true;\n"
           if anchor not in text:
               raise SystemExit("Command broadcast probe anchor missing")
@@ -173,11 +174,16 @@ jobs:
           if old not in text:
               raise SystemExit("Command broadcast provenance probe missing")
           text = text.replace(old, new, 1)
+          old_duplicate = '''    const auto duplicate=adapter.Family.AdmitInbound(adapter.Family.Owner,C::CommandProtocolVersion,\n        {replyWire.data(),replyBytes},duplicateProvenance);\n    assert(duplicate==Primitive::PrimitiveAdmissionDisposition::AlreadyAccepted);\n'''
+          new_duplicate = '''    auto duplicate=Primitive::PrimitiveAdmissionDisposition::TemporarilyUnavailable;\n    Eventually([&]{\n        duplicate=adapter.Family.AdmitInbound(adapter.Family.Owner,C::CommandProtocolVersion,\n            {replyWire.data(),replyBytes},duplicateProvenance);\n        return duplicate!=Primitive::PrimitiveAdmissionDisposition::TemporarilyUnavailable;\n    });\n    assert(duplicate==Primitive::PrimitiveAdmissionDisposition::AlreadyAccepted);\n'''
+          if old_duplicate not in text:
+              raise SystemExit("Command duplicate timing probe missing")
+          text = text.replace(old_duplicate, new_duplicate, 1)
           path.write_text(text)
           PY
       - name: Build real Command family MeshAdapter binding contract
         run: >-
-          g++ -std=c++17 -Wall -Wextra -Werror -Wno-error=misleading-indentation -fno-rtti
+          g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
           -IESPressio-MeshAdapters/src
           -IESPressio-Mesh/src
           -IESPressio-Adapters/src
