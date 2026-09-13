@@ -488,7 +488,7 @@ public:
     template<class TState,class TFormat>
     bool ValidateTransport(const State::StateTransportContract& contract) noexcept {
         const auto* entry=Find(TState::TypeId);
-        return !_frozen&&_adapterOwner&&_submit&&_routes.IsValid()&&
+        return _frozen&&_adapterOwner&&_submit&&_routes.IsValid()&&
             entry&&entry->Runtime&&entry->Encode&&
             contract.TypeId==TState::TypeId&&
             contract.Format==State::Detail::StateBindingPayloadFormat<TFormat>()&&
