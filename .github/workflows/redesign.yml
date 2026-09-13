@@ -154,30 +154,6 @@ jobs:
           -o event_mesh_adapter_outbound_test -pthread
       - name: Run local Event-to-A2 outbound contract
         run: ./event_mesh_adapter_outbound_test
-      - name: Prepare Command contract fixture
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path("ESPressio-MeshAdapters/tests/command_mesh_adapter_binding_test.cpp")
-          text = path.read_text()
-          text = text.replace("#include <ESPressio_Serializable.hpp>", "#include <ESPressio_SerializationMacros.hpp>", 1)
-          anchor = "    auto broadcastReply=replyContext;broadcastReply.Broadcast=true;\n"
-          if anchor not in text:
-              raise SystemExit("Command broadcast probe anchor missing")
-          text = text.replace(anchor,anchor + "    Adapters::AdapterSemanticProvenance broadcastProvenance{};\n",1)
-          old = "        {replyWire.data(),replyBytes},policy,provenance)==MeshAdapters::MeshAdapterPolicyResolution::Rejected);"
-          new = "        {replyWire.data(),replyBytes},policy,broadcastProvenance)==MeshAdapters::MeshAdapterPolicyResolution::Rejected);"
-          if old not in text:
-              raise SystemExit("Command broadcast provenance probe missing")
-          text = text.replace(old,new,1)
-          old_duplicate = '''    const auto duplicate=adapter.Family.AdmitInbound(adapter.Family.Owner,C::CommandProtocolVersion,\n        {replyWire.data(),replyBytes},duplicateProvenance);\n    assert(duplicate==Primitive::PrimitiveAdmissionDisposition::AlreadyAccepted);\n'''
-          new_duplicate = '''    auto duplicate=Primitive::PrimitiveAdmissionDisposition::TemporarilyUnavailable;\n    Eventually([&]{\n        duplicate=adapter.Family.AdmitInbound(adapter.Family.Owner,C::CommandProtocolVersion,\n            {replyWire.data(),replyBytes},duplicateProvenance);\n        return duplicate!=Primitive::PrimitiveAdmissionDisposition::TemporarilyUnavailable;\n    });\n    assert(duplicate==Primitive::PrimitiveAdmissionDisposition::AlreadyAccepted);\n'''
-          if old_duplicate not in text:
-              raise SystemExit("Command duplicate timing probe missing")
-          text = text.replace(old_duplicate,new_duplicate,1)
-          path.write_text(text)
-          PY
       - name: Build real Command family MeshAdapter binding contract
         run: >-
           g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
