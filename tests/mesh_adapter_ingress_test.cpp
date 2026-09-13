@@ -41,11 +41,13 @@ struct Runtime final {
 
 struct PolicyOwner final {
     static MeshAdapters::MeshAdapterPolicyResolution Resolve(
-        void*,Primitive::PrimitiveProtocolVersion version,Mesh::MeshRelayServiceClass service,
-        Adapters::AdapterByteView bytes,Primitive::PrimitivePolicyDescriptor& policy) noexcept {
+        void*,Primitive::PrimitiveProtocolVersion version,const Mesh::MeshReceiveContext& context,
+        Adapters::AdapterByteView bytes,Primitive::PrimitivePolicyDescriptor& policy,
+        Adapters::AdapterSemanticProvenance& provenance) noexcept {
+        provenance={};
         if(version!=1) return MeshAdapters::MeshAdapterPolicyResolution::Unsupported;
         if(bytes.Size!=3||bytes.Data==nullptr) return MeshAdapters::MeshAdapterPolicyResolution::Malformed;
-        if(service!=Mesh::MeshRelayServiceClass::Responsive) return MeshAdapters::MeshAdapterPolicyResolution::Rejected;
+        if(context.Service!=Mesh::MeshRelayServiceClass::Responsive) return MeshAdapters::MeshAdapterPolicyResolution::Rejected;
         policy.Category=1;policy.Evidence=0;policy.Terminal=0;policy.MaximumResidenceNanoseconds=1'000'000'000ULL;
         policy.MaximumAttempts=2;policy.MaximumAdapterAdmissionWaitNanoseconds=500'000'000ULL;
         policy.MinimumRetrySpacingNanoseconds=1'000'000ULL;policy.MaximumRetrySpacingNanoseconds=10'000'000ULL;
