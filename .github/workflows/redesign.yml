@@ -133,6 +133,27 @@ jobs:
           -o event_mesh_adapter_binding_test -pthread
       - name: Run real Event family MeshAdapter binding contract
         run: ./event_mesh_adapter_binding_test
+      - name: Build local Event-to-A2 outbound contract
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
+          -IESPressio-MeshAdapters/src
+          -IESPressio-Mesh/src
+          -IESPressio-Adapters/src
+          -IESPressio-Primitive/src
+          -IESPressio-System/src
+          -IESPressio-Event/src
+          -IESPressio-Task/src
+          -IESPressio-Task/tests
+          -IESPressio-Threads/src
+          -IESPressio-Timing/src
+          -IESPressio-Timing/tests/stubs
+          -IESPressio-Serializable/src
+          -IESPressio-Units/src
+          -IESPressio-Observable/src
+          ESPressio-MeshAdapters/tests/event_mesh_adapter_outbound_test.cpp
+          -o event_mesh_adapter_outbound_test -pthread
+      - name: Run local Event-to-A2 outbound contract
+        run: ./event_mesh_adapter_outbound_test
       - name: Prepare Command contract fixture
         shell: bash
         run: |
