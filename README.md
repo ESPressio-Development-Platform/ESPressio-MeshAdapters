@@ -1,22 +1,47 @@
 # ESPressio MeshAdapters
 
-Optional, dependency-correct integration between ESPressio Mesh and conceptual primitive-family libraries.
+`ESPressio-MeshAdapters` is the family-neutral integration layer between ESPressio Mesh, the generic ESPressio Adapters runtime (A2), and transmissible primitive families such as Event, Command and State.
 
-The first adapter is `EventMeshTransport`. It implements both Event's ownership-bearing `IEventTransport` contract and Mesh's bounded external `IPrimitiveReceiver` contract.
+The current `primitives_redesign` architecture deliberately does **not** implement a second Event-specific mesh transport, route engine, retry engine, fragmentation layer, or application runtime. MeshAdapters translates between already-owned family semantics and the bounded adapter/mesh contracts; ownership remains with the layer that defines each concern.
 
-- Outbound Event packets retain their existing shared immutable backing and are transferred to an injected Mesh submission path without a per-recipient byte copy.
-- Inbound Mesh payloads are borrowed, so an injected bounded packet owner must transfer them into Event-owned storage before Event's asynchronous transport manager receives them.
-- The Event family protocol range, semantic fingerprint, advertised visibility, and selected outbound version are supplied by composition.
-- Authenticated Mesh source/incarnation/delivery identity remains receive context. Event intentionally reduces it to Remote local-dispatch provenance rather than storing Mesh route state on Event objects.
+## Architecture
 
-`EventMeshNodeSubmission` is the bounded outbound implementation for one Node-resolving Event transport route. It obtains the destination incarnation and immutable deadline from an injected context provider, issues a fresh per-delivery `MeshMessageId`, admits an Event-family application aggregate, and retains exactly one shared Event packet reference until terminal aggregate release. Composition enumerates admitted handles to begin routing; the adapter does not invent a route service or wire framing.
+### Mesh ingress
 
-`EventMeshSelectiveSubmission` is the corresponding Group/CapabilitySelector bridge. It resolves authenticated Active remote profiles exactly once through Mesh's bounded resolver, assigns each frozen device/incarnation an independent `MeshMessageId`, and admits one aggregate sharing the original immutable Event packet and deadline. A matching local profile is handed to an injected local Event dispatcher rather than fabricated as a remote Node delivery. Remote-capacity failure occurs before any local dispatch; after remote admission, local rejection is an explicit independent result and cannot roll back accepted remote deliveries. Resolver overflow fails the whole selection and never truncates it.
+`ESPressio_MeshAdapterIngress.hpp` bridges authenticated Mesh application delivery into A2. Mesh forwarding/deduplication and local primitive admission remain independent facts: network `Seen`/`Forwarded` state does not imply local family acceptance, and a locally deferred admission may be retried without re-fanning the packet through the mesh.
 
-`EventMeshTransport` automatically passes every authenticated inbound Event-family Mesh payload to its registered Event transport receiver. With the standard `EventTransportManager` registration, the manager owns/deserializes the packet and dispatches the resulting Event through the local `EventManager` with `EventOrigin::Remote`; no application-level remote-to-local bridge is required per Event type. Per-type Event registration still declares the stable identity, schema, serializer and allowed transport direction.
+Borrowed Mesh bytes are copied into bounded adapter-owned storage before asynchronous processing. Only a family result of `Accepted` or `AlreadyAccepted` establishes destination Primitive admission evidence.
 
-`EventMeshBroadcastSubmission` is the synchronous Event-family bridge into a configured `MeshV1BroadcastCoordinator`. It supplies the Event primitive descriptor and borrows the already-owned immutable packet only while Mesh copies it into the explicit protected-frame workspace. Because `EventManager` has already performed the originating local dispatch, the adapter suppresses Mesh's optional origin-side primitive dispatch and only fans the packet out. Deadline, hop limit and the bounded direct-neighbour plan remain composition policy. It retains no packet, retry, acknowledgement or recipient outcome and reports only whether Mesh completed the best-effort submission attempt.
+### A2 outbound to Mesh
 
-MeshAdapters defines no radio, route algorithm, Group identity, packet framing, cryptographic handshake, or default payload byte capacity. The adapter consumes Mesh's opaque `GroupIdentifier` and authenticated profile semantics without redefining them.
+`ESPressio_MeshLowerTransportBinding.hpp` is the neutral lower transport used by A2 for outbound primitive bytes. A2 owns logical pursuit, bounded retry state and required evidence; Mesh owns route/forwarding/application lifecycle; Radio owns physical contention, framing and fragmentation beneath Mesh.
 
-During the coordinated Mesh implementation tranche, use the matching propagation branches for Mesh, Event, Primitive, System, and Radio: `structural_realignment_propagation_ESPressio-Mesh` (Mesh itself uses `structural_realignment_propagation`). Observable remains on `structural_realignment`.
+`ESPressio_MeshRouteBinding.hpp` resolves semantic `DeviceIdentifier` destinations to opaque `AdapterRouteToken` values. Route tokens are transport facts and must not encode, truncate or substitute for device identity.
+
+### Event
+
+`ESPressio_EventMeshAdapterBinding.hpp` adapts authenticated Event V1 ingress into the real Event runtime. Event semantics, type registration, deserialization, idempotency/provenance and local dispatch remain owned by ESPressio-Event.
+
+`ESPressio_EventMeshAdapterOutboundTarget.hpp` is the Event `ExternalAdapter` target for local outbound occurrences. Borrowed Event lease data is synchronously encoded into A2-owned bytes. Remote-origin Event occurrences are not re-egressed through the external adapter, preventing source feedback loops.
+
+### Command
+
+`ESPressio_CommandMeshAdapterBinding.hpp` adapts Command V1 ingress and outbound request/response traffic without duplicating the Command runtime. Command remains owner of execution, persistence, replay/idempotency, completion semantics and response routing.
+
+For response-bearing requests, MeshAdapters retains only a bounded generation-safe delivery correlation token while A2 pursues the owned bytes. Terminal A2 failure without required destination-admission evidence publishes the existing Command delivery failure exactly once. Durable responses recovered after restart reserve a bounded MeshAdapter destination during Command initialization and are emitted through the same A2 response encoder after start.
+
+### State
+
+`ESPressio_StateMeshAdapterBinding.hpp` adapts State V1 ingress and the real `StateTransportBinding` egress seam. State remains sole owner of owner-authoritative truth, sessions, versions, baselines, resync and convergence state.
+
+MeshAdapters may retain only the immutable `StateConvergenceHandle` needed to correlate terminal A2 pursuit feedback. A terminal pursuit failure is returned to State from service context through `ReportConvergenceExhausted`; the adapter does not create a second State retry schedule.
+
+## Resource and lifecycle rules
+
+All queues, byte arenas, delivery correlations and response destinations are explicitly bounded. No MeshAdapter path may introduce hidden unbounded allocation or a family-local retry worker. Registration/topology and family bindings are frozen before runtime start. Transport bindings that must participate in family initialization are configured before the family runtime initializes, but their start validation observes the final frozen MeshAdapter composition.
+
+The redesign intentionally removes the predecessor Event-only `EventMeshTransport`, `EventMeshNodeSubmission`, `EventMeshSelectiveSubmission`, and `EventMeshBroadcastSubmission` architecture. There is no compatibility shim for those paths in the clean 1.0.0 contract.
+
+## Validation
+
+The `tests/` contracts exercise the neutral Mesh/A2 boundary and real Event, Command and State runtimes. In particular they cover Event remote-to-local dispatch and no re-egress, Command idempotency, local request delivery, terminal request-delivery failure and durable recovered-response routing, and State ingress plus terminal convergence-exhaustion feedback.

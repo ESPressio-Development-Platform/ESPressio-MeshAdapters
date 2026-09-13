@@ -1,6 +1,9 @@
 #pragma once
 
-#include "ESPressio_EventMeshTransport.hpp"
-#include "ESPressio_EventMeshNodeSubmission.hpp"
-#include "ESPressio_EventMeshSelectiveSubmission.hpp"
-#include "ESPressio_EventMeshBroadcastSubmission.hpp"
+#include "ESPressio_MeshAdapterIngress.hpp"
+#include "ESPressio_MeshLowerTransportBinding.hpp"
+#include "ESPressio_MeshRouteBinding.hpp"
+#include "ESPressio_EventMeshAdapterBinding.hpp"
+#include "ESPressio_EventMeshAdapterOutboundTarget.hpp"
+#include "ESPressio_CommandMeshAdapterBinding.hpp"
+#include "ESPressio_StateMeshAdapterBinding.hpp"
