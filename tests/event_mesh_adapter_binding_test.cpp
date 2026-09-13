@@ -41,6 +41,11 @@ template<class F> void Await(F&& f){
     }
 }
 
+static bool SamePolicy(const Primitive::PrimitivePolicyDescriptor& left,
+                       const Primitive::PrimitivePolicyDescriptor& right) noexcept {
+    return left.CanonicalBytes()==right.CanonicalBytes();
+}
+
 int main(){
     HostRuntime platform;
     Primitive::TypeDirectory<1> directory;
@@ -90,7 +95,7 @@ int main(){
     Primitive::PrimitivePolicyDescriptor resolved{};
     assert(policyBinding.Resolve(policyBinding.Owner,E::EventProtocolVersion,Mesh::MeshRelayServiceClass::Responsive,view,resolved)
         ==MeshAdapters::MeshAdapterPolicyResolution::Resolved);
-    assert(resolved==Primitive::PrimitivePolicyContract<Delivery>::Descriptor());
+    assert(SamePolicy(resolved,Primitive::PrimitivePolicyContract<Delivery>::Descriptor()));
     assert(policyBinding.Resolve(policyBinding.Owner,E::EventProtocolVersion,Mesh::MeshRelayServiceClass::Critical,view,resolved)
         ==MeshAdapters::MeshAdapterPolicyResolution::Rejected);
 
