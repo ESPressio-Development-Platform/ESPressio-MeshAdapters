@@ -1,7 +1,7 @@
 #include <ESPressio_CommandMeshAdapterBinding.hpp>
 #include <ESPressio_CommandOutboundBinding.hpp>
 #include <ESPressio_Persistence.hpp>
-#include <ESPressio_Serializable.hpp>
+#include <ESPressio_SerializationMacros.hpp>
 #include <HostRuntime.hpp>
 
 #include <array>
@@ -272,8 +272,9 @@ int main(){
     assert(policy.Evidence==1);
 
     auto broadcastReply=replyContext;broadcastReply.Broadcast=true;
+    Adapters::AdapterSemanticProvenance broadcastProvenance{};
     assert(policyBinding.Resolve(policyBinding.Owner,C::CommandProtocolVersion,broadcastReply,
-        {replyWire.data(),replyBytes},policy,provenance)==MeshAdapters::MeshAdapterPolicyResolution::Rejected);
+        {replyWire.data(),replyBytes},policy,broadcastProvenance)==MeshAdapters::MeshAdapterPolicyResolution::Rejected);
 
     const auto admitted=adapter.Family.AdmitInbound(adapter.Family.Owner,C::CommandProtocolVersion,
         {replyWire.data(),replyBytes},provenance);
@@ -290,8 +291,12 @@ int main(){
     Adapters::AdapterSemanticProvenance duplicateProvenance{};
     assert(policyBinding.Resolve(policyBinding.Owner,C::CommandProtocolVersion,replyContext,
         {replyWire.data(),replyBytes},policy,duplicateProvenance)==MeshAdapters::MeshAdapterPolicyResolution::Resolved);
-    const auto duplicate=adapter.Family.AdmitInbound(adapter.Family.Owner,C::CommandProtocolVersion,
-        {replyWire.data(),replyBytes},duplicateProvenance);
+    auto duplicate=Primitive::PrimitiveAdmissionDisposition::TemporarilyUnavailable;
+    Eventually([&]{
+        duplicate=adapter.Family.AdmitInbound(adapter.Family.Owner,C::CommandProtocolVersion,
+            {replyWire.data(),replyBytes},duplicateProvenance);
+        return duplicate!=Primitive::PrimitiveAdmissionDisposition::TemporarilyUnavailable;
+    });
     assert(duplicate==Primitive::PrimitiveAdmissionDisposition::AlreadyAccepted);
     Eventually([&]{return adapter.Submissions.load()>=2;});
     assert(handler.ReplyCalls.load()==1);
