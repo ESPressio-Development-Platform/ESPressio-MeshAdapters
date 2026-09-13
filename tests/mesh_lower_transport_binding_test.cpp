@@ -44,18 +44,14 @@ struct MeshLifecycle final {
         return {Adapters::LowerTransportDisposition::Accepted,17,true};
     }
 
-    static bool Validate(void* owner) noexcept {
-        return static_cast<MeshLifecycle*>(owner)->Running;
-    }
+    static bool Validate(void* owner) noexcept { return static_cast<MeshLifecycle*>(owner)->Running; }
 
     static void Cancel(void* owner,Adapters::AdapterRecordIdentity record) noexcept {
         auto& self=*static_cast<MeshLifecycle*>(owner);
         self.Cancelled=(record.Slot==self.Record.Slot && record.Generation==self.Record.Generation);
     }
 
-    static void Quiesce(void* owner) noexcept {
-        static_cast<MeshLifecycle*>(owner)->Quiesced=true;
-    }
+    static void Quiesce(void* owner) noexcept { static_cast<MeshLifecycle*>(owner)->Quiesced=true; }
 };
 
 static constexpr std::uint8_t ServiceBit(Mesh::MeshRelayServiceClass service) noexcept {
@@ -97,7 +93,7 @@ int main() {
     };
     const Adapters::AdapterRouteToken route{0x1234};
     const auto submitted=binding.Submit(
-        binding.Owner,record,Adapters::AdapterServiceClass::Responsive,
+        binding.Owner,record,0x1201,3,Adapters::AdapterServiceClass::Responsive,
         {bytes.data(),bytes.size()},route);
     assert(submitted.Disposition==Adapters::LowerTransportDisposition::Accepted);
     assert(submitted.Generation==17);
