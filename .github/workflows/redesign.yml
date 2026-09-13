@@ -45,6 +45,11 @@ jobs:
           path: ESPressio-Command
       - uses: actions/checkout@v4
         with:
+          repository: ESPressio-Development-Platform/ESPressio-State
+          ref: primitives_redesign
+          path: ESPressio-State
+      - uses: actions/checkout@v4
+        with:
           repository: ESPressio-Development-Platform/ESPressio-Persistence
           ref: primitives_redesign
           path: ESPressio-Persistence
@@ -172,3 +177,25 @@ jobs:
           -o command_mesh_adapter_binding_test -pthread
       - name: Run real Command family MeshAdapter binding contract
         run: ./command_mesh_adapter_binding_test
+      - name: Build real State family MeshAdapter binding contract
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
+          -IESPressio-MeshAdapters/src
+          -IESPressio-Mesh/src
+          -IESPressio-Adapters/src
+          -IESPressio-Primitive/src
+          -IESPressio-System/src
+          -IESPressio-State/src
+          -IESPressio-Persistence/src
+          -IESPressio-Task/src
+          -IESPressio-Task/tests
+          -IESPressio-Threads/src
+          -IESPressio-Timing/src
+          -IESPressio-Timing/tests/stubs
+          -IESPressio-Serializable/src
+          -IESPressio-Units/src
+          -IESPressio-Observable/src
+          ESPressio-MeshAdapters/tests/state_mesh_adapter_binding_test.cpp
+          -o state_mesh_adapter_binding_test -pthread
+      - name: Run real State family MeshAdapter binding contract
+        run: ./state_mesh_adapter_binding_test
