@@ -30,13 +30,19 @@ enum class MeshAdapterPolicyResolution : std::uint8_t { Resolved=0, Unsupported,
 using MeshAdapterPolicyResolver = MeshAdapterPolicyResolution(*)(
     void*,
     Primitive::PrimitiveProtocolVersion,
-    Mesh::MeshRelayServiceClass,
+    const Mesh::MeshReceiveContext&,
     Adapters::AdapterByteView,
-    Primitive::PrimitivePolicyDescriptor&) noexcept;
+    Primitive::PrimitivePolicyDescriptor&,
+    Adapters::AdapterSemanticProvenance&) noexcept;
 
-/// <summary>Frozen family-specific policy/service resolver used before A2 accepts Mesh-owned inbound bytes.</summary>
-/// <remarks>The authenticated Mesh service is supplied explicitly so a family binding can enforce its immutable per-Type
-/// service mapping before ownership crosses into A2. A2 family admission intentionally has no transport-service argument.</remarks>
+/// <summary>Frozen family-specific policy/service/provenance resolver used before A2 accepts Mesh-owned inbound bytes.</summary>
+/// <remarks>
+/// The complete authenticated Mesh receive context is supplied so a family binding can enforce immutable per-Type service,
+/// broadcast policy and semantic-source rules before ownership crosses into A2. When a family wire carries a full
+/// DeviceRuntimeIdentity, the resolver may publish it as validated original semantic source only after proving that its
+/// DeviceIdentifier equals the authenticated Mesh source. The Mesh membership incarnation is never reinterpreted as a
+/// Primitive/System RuntimeIncarnationId. A2 family admission intentionally has no Mesh transport-context argument.
+/// </remarks>
 struct MeshAdapterPolicyBinding final {
     Primitive::PrimitiveFamilyId Family{Primitive::FamilyIds::Invalid};
     Primitive::PrimitiveProtocolVersionRange Protocols{};
@@ -83,8 +89,9 @@ constexpr Primitive::PrimitiveAdmissionDisposition ToPrimitiveAdmission(
 /// The first Receive transfers complete byte ownership to A2 and reports TemporarilyUnavailable, never false destination
 /// admission. Exact family completion is retained under the authenticated Mesh occurrence key. Completion advances a
 /// generation and fixed wake; DeferredLocal then retries and receives the retained M1 without another A2 enqueue.
-/// Mesh membership incarnation is not converted into Primitive RuntimeIncarnationId; no stronger provenance is invented.
-/// Receive uses try-lock only: contention is a retryable local admission fact and never blocks the Mesh ingress path.
+/// The bridge itself never converts Mesh membership incarnation into Primitive RuntimeIncarnationId. A family resolver may
+/// validate a full semantic runtime identity carried inside authenticated family bytes and publish that exact identity as
+/// A2 provenance. Receive uses try-lock only: contention is a retryable local admission fact and never blocks Mesh ingress.
 /// </remarks>
 template<class TAdapterRuntime,std::size_t TMaximumCorrelations>
 class MeshAdapterIngressBridge final : public Mesh::IPrimitiveReceiver {
@@ -213,8 +220,9 @@ public:
         if(!_policy.Protocols.Contains(version)) return P::Unsupported;
 
         Primitive::PrimitivePolicyDescriptor familyPolicy{};
+        Adapters::AdapterSemanticProvenance provenance{};
         const Adapters::AdapterByteView bytes{payload.Data,payload.Size};
-        switch(_policy.Resolve(_policy.Owner,version,context.Service,bytes,familyPolicy)){
+        switch(_policy.Resolve(_policy.Owner,version,context,bytes,familyPolicy,provenance)){
             case MeshAdapterPolicyResolution::Resolved: break;
             case MeshAdapterPolicyResolution::Unsupported: return P::Unsupported;
             case MeshAdapterPolicyResolution::Rejected: return P::Rejected;
@@ -241,7 +249,6 @@ public:
             if(!AllocateLocked(context,expiry,slot,slotGeneration)) return P::ResourceUnavailable;
         }
 
-        Adapters::AdapterSemanticProvenance provenance{};
         const auto correlation=Correlation(slot,slotGeneration);
         const auto submitted=_runtime->AdmitTrustedInbound(
             _policy.Family,ToAdapterServiceClass(context.Service),version,bytes,provenance,
