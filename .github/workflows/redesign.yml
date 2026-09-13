@@ -63,6 +63,11 @@ jobs:
           repository: ESPressio-Development-Platform/ESPressio-Units
           ref: primitives_redesign
           path: ESPressio-Units
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Observable
+          ref: primitives_redesign
+          path: ESPressio-Observable
       - name: Build bounded Mesh-to-A2 ingress correlation contract
         run: >-
           g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
@@ -91,6 +96,7 @@ jobs:
           -IESPressio-Timing/tests/stubs
           -IESPressio-Serializable/src
           -IESPressio-Units/src
+          -IESPressio-Observable/src
           ESPressio-MeshAdapters/tests/event_mesh_adapter_binding_test.cpp
           -o event_mesh_adapter_binding_test -pthread
       - name: Run real Event family MeshAdapter binding contract
