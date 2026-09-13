@@ -92,29 +92,46 @@ int main(){
     const auto bytes=E::EventWireHeaderSize+encoded.Bytes;
     const Adapters::AdapterByteView view{wire.data(),bytes};
 
+    Mesh::MembershipIncarnation::Storage membershipBytes{};
+    membershipBytes[0]=9;
+    const Mesh::MeshReceiveContext unicast{
+        header.Key.Origin.Device,Mesh::MembershipIncarnation{membershipBytes},31,4,false,
+        Mesh::MeshRelayServiceClass::Responsive};
+
     Primitive::PrimitivePolicyDescriptor resolved{};
-    assert(policyBinding.Resolve(policyBinding.Owner,E::EventProtocolVersion,Mesh::MeshRelayServiceClass::Responsive,view,resolved)
+    Adapters::AdapterSemanticProvenance provenance{};
+    assert(policyBinding.Resolve(policyBinding.Owner,E::EventProtocolVersion,unicast,view,resolved,provenance)
         ==MeshAdapters::MeshAdapterPolicyResolution::Resolved);
     assert(SamePolicy(resolved,Primitive::PrimitivePolicyContract<Delivery>::Descriptor()));
-    assert(policyBinding.Resolve(policyBinding.Owner,E::EventProtocolVersion,Mesh::MeshRelayServiceClass::Critical,view,resolved)
+    assert(!provenance.OriginalSource);
+
+    auto wrongService=unicast;
+    wrongService.Service=Mesh::MeshRelayServiceClass::Critical;
+    assert(policyBinding.Resolve(policyBinding.Owner,E::EventProtocolVersion,wrongService,view,resolved,provenance)
         ==MeshAdapters::MeshAdapterPolicyResolution::Rejected);
 
-    Adapters::AdapterSemanticProvenance provenance{};
+    // M2 generic broadcast may carry only NoRemoteEvidence policy. This Event requires destination admission.
+    auto broadcast=unicast;
+    broadcast.Broadcast=true;
+    assert(policyBinding.Resolve(policyBinding.Owner,E::EventProtocolVersion,broadcast,view,resolved,provenance)
+        ==MeshAdapters::MeshAdapterPolicyResolution::Rejected);
+
+    Adapters::AdapterSemanticProvenance directProvenance{};
     Primitive::PrimitiveAdmissionDisposition first=Primitive::PrimitiveAdmissionDisposition::TemporarilyUnavailable;
     Await([&]{
-        first=adapter.AdmitInbound(adapter.Owner,E::EventProtocolVersion,view,provenance);
+        first=adapter.AdmitInbound(adapter.Owner,E::EventProtocolVersion,view,directProvenance);
         return first!=Primitive::PrimitiveAdmissionDisposition::TemporarilyUnavailable;
     });
     assert(first==Primitive::PrimitiveAdmissionDisposition::Accepted);
-    assert(adapter.AdmitInbound(adapter.Owner,E::EventProtocolVersion,view,provenance)
+    assert(adapter.AdmitInbound(adapter.Owner,E::EventProtocolVersion,view,directProvenance)
         ==Primitive::PrimitiveAdmissionDisposition::AlreadyAccepted);
 
     auto unknown=wire;
     unknown[4]^=1U;
     const Adapters::AdapterByteView unknownView{unknown.data(),bytes};
-    assert(policyBinding.Resolve(policyBinding.Owner,E::EventProtocolVersion,Mesh::MeshRelayServiceClass::Responsive,
-        unknownView,resolved)==MeshAdapters::MeshAdapterPolicyResolution::Unsupported);
-    assert(adapter.AdmitInbound(adapter.Owner,E::EventProtocolVersion,unknownView,provenance)
+    assert(policyBinding.Resolve(policyBinding.Owner,E::EventProtocolVersion,unicast,
+        unknownView,resolved,provenance)==MeshAdapters::MeshAdapterPolicyResolution::Unsupported);
+    assert(adapter.AdmitInbound(adapter.Owner,E::EventProtocolVersion,unknownView,directProvenance)
         ==Primitive::PrimitiveAdmissionDisposition::Unsupported);
 
     assert(runtime.Shutdown()==E::EventRuntimeStatus::Success);
