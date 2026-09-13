@@ -75,7 +75,6 @@ struct MeshApplicationLifecycleBinding final {
     }
 };
 
-/// <summary>Maps A2's neutral service class to Mesh's independently declared neutral relay service vocabulary.</summary>
 constexpr bool ToMeshRelayServiceClass(
     Adapters::AdapterServiceClass service,
     Mesh::MeshRelayServiceClass& mapped) noexcept {
@@ -109,13 +108,11 @@ constexpr std::uint8_t ToAdapterServiceMask(std::uint8_t meshMask) noexcept {
     return result;
 }
 
-/// <summary>
-/// Neutral A2 LowerTransportBinding backed by the existing Mesh application lifecycle and managed-Radio machinery.
-/// </summary>
+/// <summary>Neutral A2 lower-transport binding backed by the existing Mesh application lifecycle.</summary>
 /// <remarks>
-/// Family/version supplied by A2 are intentionally ignored here: the existing Mesh application lifecycle already owns
-/// its family framing/binding. They are present in the neutral lower-transport seam so transports such as direct Radio
-/// can construct their own locked envelope without making family encoders transport-specific.
+/// Family/version/policy supplied by A2 are intentionally ignored here: Mesh already owns its application framing and
+/// pursuit semantics. Those neutral facts are exposed so other transports can construct their own locked envelope and
+/// finite transport timing without making family encoders transport-specific.
 /// </remarks>
 template<class TAdapterRuntime>
 class MeshLowerTransportBinding final {
@@ -139,6 +136,7 @@ class MeshLowerTransportBinding final {
         Adapters::AdapterRecordIdentity record,
         Primitive::PrimitiveFamilyId,
         Primitive::PrimitiveProtocolVersion,
+        const Primitive::PrimitivePolicyDescriptor&,
         Adapters::AdapterServiceClass service,
         Adapters::AdapterByteView bytes,
         Adapters::AdapterRouteToken route) noexcept {
