@@ -88,10 +88,12 @@ class EventMeshAdapterFamilyBinding final {
     static MeshAdapterPolicyResolution ResolvePolicy(
         void* owner,
         Primitive::PrimitiveProtocolVersion protocol,
-        Mesh::MeshRelayServiceClass service,
+        const Mesh::MeshReceiveContext& context,
         Adapters::AdapterByteView bytes,
-        Primitive::PrimitivePolicyDescriptor& policy) noexcept {
+        Primitive::PrimitivePolicyDescriptor& policy,
+        Adapters::AdapterSemanticProvenance& provenance) noexcept {
         auto& self=*static_cast<EventMeshAdapterFamilyBinding*>(owner);
+        provenance={};
         if(!self._frozen) return MeshAdapterPolicyResolution::Rejected;
         if(protocol!=Event::EventProtocolVersion) return MeshAdapterPolicyResolution::Unsupported;
         if(!bytes.Data||bytes.Size<Event::EventWireHeaderSize) return MeshAdapterPolicyResolution::Malformed;
@@ -101,8 +103,10 @@ class EventMeshAdapterFamilyBinding final {
             ?MeshAdapterPolicyResolution::Unsupported:MeshAdapterPolicyResolution::Malformed;
         const auto* entry=self.Find(header.Key.TypeId);
         if(!entry) return MeshAdapterPolicyResolution::Unsupported;
-        if(service!=entry->Service) return MeshAdapterPolicyResolution::Rejected;
+        if(context.Service!=entry->Service) return MeshAdapterPolicyResolution::Rejected;
         if(bytes.Size>entry->MaximumWireBytes) return MeshAdapterPolicyResolution::Malformed;
+        // Locked M2 permits generic Mesh broadcast only for NoRemoteEvidence family policy.
+        if(context.Broadcast&&entry->Policy.Evidence!=0U) return MeshAdapterPolicyResolution::Rejected;
         policy=entry->Policy;
         return MeshAdapterPolicyResolution::Resolved;
     }
