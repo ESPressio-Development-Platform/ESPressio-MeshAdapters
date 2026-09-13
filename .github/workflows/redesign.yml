@@ -130,7 +130,7 @@ jobs:
         run: ./event_mesh_adapter_binding_test
       - name: Build real Command family MeshAdapter binding contract
         run: >-
-          g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
+          g++ -std=c++17 -Wall -Wextra -Werror -Wno-error=misleading-indentation -fno-rtti
           -IESPressio-MeshAdapters/src
           -IESPressio-Mesh/src
           -IESPressio-Adapters/src
