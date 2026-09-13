@@ -1,0 +1,47 @@
+name: MeshAdapters redesign contracts
+
+on:
+  push:
+    branches:
+      - primitives_redesign
+  pull_request:
+
+jobs:
+  host-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ESPressio-MeshAdapters
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Mesh
+          ref: primitives_redesign
+          path: ESPressio-Mesh
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Adapters
+          ref: primitives_redesign
+          path: ESPressio-Adapters
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Primitive
+          ref: primitives_redesign
+          path: ESPressio-Primitive
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-System
+          ref: primitives_redesign
+          path: ESPressio-System
+      - name: Build bounded Mesh-to-A2 ingress correlation contract
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
+          -IESPressio-MeshAdapters/src
+          -IESPressio-Mesh/src
+          -IESPressio-Adapters/src
+          -IESPressio-Primitive/src
+          -IESPressio-System/src
+          ESPressio-MeshAdapters/tests/mesh_adapter_ingress_test.cpp
+          -o mesh_adapter_ingress_test -pthread
+      - name: Run bounded Mesh-to-A2 ingress correlation contract
+        run: ./mesh_adapter_ingress_test
