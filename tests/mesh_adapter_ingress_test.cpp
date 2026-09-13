@@ -40,10 +40,12 @@ struct Runtime final {
 };
 
 struct PolicyOwner final {
-    static MeshAdapters::MeshAdapterPolicyResolution Resolve(void*,Primitive::PrimitiveProtocolVersion version,
+    static MeshAdapters::MeshAdapterPolicyResolution Resolve(
+        void*,Primitive::PrimitiveProtocolVersion version,Mesh::MeshRelayServiceClass service,
         Adapters::AdapterByteView bytes,Primitive::PrimitivePolicyDescriptor& policy) noexcept {
         if(version!=1) return MeshAdapters::MeshAdapterPolicyResolution::Unsupported;
         if(bytes.Size!=3||bytes.Data==nullptr) return MeshAdapters::MeshAdapterPolicyResolution::Malformed;
+        if(service!=Mesh::MeshRelayServiceClass::Responsive) return MeshAdapters::MeshAdapterPolicyResolution::Rejected;
         policy.Category=1;policy.Evidence=0;policy.Terminal=0;policy.MaximumResidenceNanoseconds=1'000'000'000ULL;
         policy.MaximumAttempts=2;policy.MaximumAdapterAdmissionWaitNanoseconds=500'000'000ULL;
         policy.MinimumRetrySpacingNanoseconds=1'000'000ULL;policy.MaximumRetrySpacingNanoseconds=10'000'000ULL;
@@ -64,12 +66,12 @@ int main(){
     assert(bridge.Receive(first,1,{bytes.data(),bytes.size()})==Primitive::PrimitiveAdmissionDisposition::TemporarilyUnavailable);
     assert(runtime.Calls==1&&bridge.AdmissionGeneration()==initialGeneration);
     assert(bridge.Receive(first,1,{bytes.data(),bytes.size()})==Primitive::PrimitiveAdmissionDisposition::TemporarilyUnavailable);
-    assert(runtime.Calls==1); // pending duplicate never re-enters A2
+    assert(runtime.Calls==1);
 
     runtime.Resolve(Primitive::PrimitiveAdmissionDisposition::Accepted);
     assert(wake.Calls==1&&bridge.AdmissionGeneration()==initialGeneration+1);
     assert(bridge.Receive(first,1,{bytes.data(),bytes.size()})==Primitive::PrimitiveAdmissionDisposition::Accepted);
-    assert(runtime.Calls==1); // completion is consumed, not re-enqueued
+    assert(runtime.Calls==1);
 
     const Mesh::MeshReceiveContext second{Device(1),Incarnation(1),8,2,true,Mesh::MeshRelayServiceClass::Responsive};
     assert(bridge.Receive(second,1,{bytes.data(),bytes.size()})==Primitive::PrimitiveAdmissionDisposition::TemporarilyUnavailable);
@@ -79,6 +81,11 @@ int main(){
     const Mesh::MeshReceiveContext third{Device(1),Incarnation(1),9,2,true,Mesh::MeshRelayServiceClass::Responsive};
     runtime.Next=Adapters::AdapterSubmissionDisposition::ResourceUnavailable;
     assert(bridge.Receive(third,1,{bytes.data(),bytes.size()})==Primitive::PrimitiveAdmissionDisposition::ResourceUnavailable);
+
+    const Mesh::MeshReceiveContext wrongService{Device(1),Incarnation(1),10,2,true,Mesh::MeshRelayServiceClass::Critical};
+    const auto callsBeforeWrongService=runtime.Calls;
+    assert(bridge.Receive(wrongService,1,{bytes.data(),bytes.size()})==Primitive::PrimitiveAdmissionDisposition::Rejected);
+    assert(runtime.Calls==callsBeforeWrongService);
 
     assert(bridge.Receive(first,2,{bytes.data(),bytes.size()})==Primitive::PrimitiveAdmissionDisposition::Unsupported);
     assert(MeshAdapters::ToAdapterServiceClass(Mesh::MeshRelayServiceClass::Infrastructure)==Adapters::AdapterServiceClass::Infrastructure);
