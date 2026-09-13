@@ -165,20 +165,17 @@ jobs:
           anchor = "    auto broadcastReply=replyContext;broadcastReply.Broadcast=true;\n"
           if anchor not in text:
               raise SystemExit("Command broadcast probe anchor missing")
-          text = text.replace(
-              anchor,
-              anchor + "    Adapters::AdapterSemanticProvenance broadcastProvenance{};\n",
-              1)
+          text = text.replace(anchor,anchor + "    Adapters::AdapterSemanticProvenance broadcastProvenance{};\n",1)
           old = "        {replyWire.data(),replyBytes},policy,provenance)==MeshAdapters::MeshAdapterPolicyResolution::Rejected);"
           new = "        {replyWire.data(),replyBytes},policy,broadcastProvenance)==MeshAdapters::MeshAdapterPolicyResolution::Rejected);"
           if old not in text:
               raise SystemExit("Command broadcast provenance probe missing")
-          text = text.replace(old, new, 1)
+          text = text.replace(old,new,1)
           old_duplicate = '''    const auto duplicate=adapter.Family.AdmitInbound(adapter.Family.Owner,C::CommandProtocolVersion,\n        {replyWire.data(),replyBytes},duplicateProvenance);\n    assert(duplicate==Primitive::PrimitiveAdmissionDisposition::AlreadyAccepted);\n'''
           new_duplicate = '''    auto duplicate=Primitive::PrimitiveAdmissionDisposition::TemporarilyUnavailable;\n    Eventually([&]{\n        duplicate=adapter.Family.AdmitInbound(adapter.Family.Owner,C::CommandProtocolVersion,\n            {replyWire.data(),replyBytes},duplicateProvenance);\n        return duplicate!=Primitive::PrimitiveAdmissionDisposition::TemporarilyUnavailable;\n    });\n    assert(duplicate==Primitive::PrimitiveAdmissionDisposition::AlreadyAccepted);\n'''
           if old_duplicate not in text:
               raise SystemExit("Command duplicate timing probe missing")
-          text = text.replace(old_duplicate, new_duplicate, 1)
+          text = text.replace(old_duplicate,new_duplicate,1)
           path.write_text(text)
           PY
       - name: Build real Command family MeshAdapter binding contract
@@ -204,6 +201,29 @@ jobs:
           -o command_mesh_adapter_binding_test -pthread
       - name: Run real Command family MeshAdapter binding contract
         run: ./command_mesh_adapter_binding_test
+      - name: Build local Command-to-A2 outbound contract
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
+          -IESPressio-MeshAdapters/src
+          -IESPressio-Mesh/src
+          -IESPressio-Adapters/src
+          -IESPressio-Primitive/src
+          -IESPressio-System/src
+          -IESPressio-Command/src
+          -IESPressio-Persistence/src
+          -IESPressio-Security/src
+          -IESPressio-Task/src
+          -IESPressio-Task/tests
+          -IESPressio-Threads/src
+          -IESPressio-Timing/src
+          -IESPressio-Timing/tests/stubs
+          -IESPressio-Serializable/src
+          -IESPressio-Units/src
+          -IESPressio-Observable/src
+          ESPressio-MeshAdapters/tests/command_mesh_adapter_outbound_test.cpp
+          -o command_mesh_adapter_outbound_test -pthread
+      - name: Run local Command-to-A2 outbound contract
+        run: ./command_mesh_adapter_outbound_test
       - name: Build real State family MeshAdapter binding contract
         run: >-
           g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
