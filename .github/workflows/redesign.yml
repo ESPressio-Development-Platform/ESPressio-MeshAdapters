@@ -80,6 +80,18 @@ jobs:
           -o mesh_adapter_ingress_test -pthread
       - name: Run bounded Mesh-to-A2 ingress correlation contract
         run: ./mesh_adapter_ingress_test
+      - name: Build neutral A2-to-Mesh lower transport contract
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
+          -IESPressio-MeshAdapters/src
+          -IESPressio-Mesh/src
+          -IESPressio-Adapters/src
+          -IESPressio-Primitive/src
+          -IESPressio-System/src
+          ESPressio-MeshAdapters/tests/mesh_lower_transport_binding_test.cpp
+          -o mesh_lower_transport_binding_test -pthread
+      - name: Run neutral A2-to-Mesh lower transport contract
+        run: ./mesh_lower_transport_binding_test
       - name: Build real Event family MeshAdapter binding contract
         run: >-
           g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
