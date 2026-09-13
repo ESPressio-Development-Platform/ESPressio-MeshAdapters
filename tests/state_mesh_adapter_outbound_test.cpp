@@ -98,6 +98,9 @@ struct Lower final {
     static Adapters::LowerTransportSubmitResult Submit(
         void* owner,
         Adapters::AdapterRecordIdentity,
+        Primitive::PrimitiveFamilyId,
+        Primitive::PrimitiveProtocolVersion,
+        const Primitive::PrimitivePolicyDescriptor&,
         Adapters::AdapterServiceClass service,
         Adapters::AdapterByteView bytes,
         Adapters::AdapterRouteToken route) noexcept {
