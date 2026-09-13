@@ -152,7 +152,9 @@ struct LowerTransport final {
         auto& self=*static_cast<LowerTransport*>(owner);
         assert(bytes.Data&&bytes.Size<=self.Last.size());
         std::memcpy(self.Last.data(),bytes.Data,bytes.Size);
-        self.Bytes=bytes.Size;self.Route=route;self.Service=service;
+        self.Bytes=bytes.Size;
+        self.Route=route;
+        self.Service=service;
         const auto generation=++self.Calls;
         return {Adapters::LowerTransportDisposition::Accepted,generation,false};
     }
@@ -165,6 +167,20 @@ struct LowerTransport final {
         binding.ProvidesDestinationPrimitiveAdmission=false;
         binding.ProvidesValidatedOriginalSource=true;
         return binding;
+    }
+};
+
+template<class TFamily>
+struct FireOutboundOwner final {
+    TFamily* Family=nullptr;
+    C::CommandOutboundAdmission Admit(
+        System::DeviceIdentifier target,
+        const C::CommandRequestLease<FireCommand>& request,
+        C::CommandRequestDeliveryToken token) noexcept {
+        return Family->template SubmitRequest<FireCommand>(target,request,token);
+    }
+    bool Validate(const C::CommandOutboundContract& contract) noexcept {
+        return Family->template ValidateOutboundContract<FireCommand,Serializable::DirectBinary>(contract);
     }
 };
 
@@ -187,13 +203,15 @@ int main() {
         &routes,&RouteResolver::Validate,&RouteResolver::Resolve,&RouteResolver::Broadcast};
     using Family=MeshAdapters::CommandMeshAdapterFamilyBinding<AdapterRuntime,1,2>;
     Family family(adapter,routeBinding);
-    assert((family.ConfigureType<FireCommand,Serializable::DirectBinary>(Mesh::MeshRelayServiceClass::BestEffort)==
+    assert((family.ConfigureType<FireCommand,Serializable::DirectBinary>(
+                Mesh::MeshRelayServiceClass::BestEffort)==
             MeshAdapters::CommandMeshAdapterBindingStatus::Success));
 
+    FireOutboundOwner<Family> outboundOwner{&family};
     C::CommandOutboundBinding<FireCommand,Serializable::DirectBinary> outbound;
-    assert((outbound.Initialize<Family,
-        &Family::template SubmitRequest<FireCommand>,
-        &Family::template ValidateOutboundContract<FireCommand,Serializable::DirectBinary>>(family)));
+    assert((outbound.Initialize<FireOutboundOwner<Family>,
+        &FireOutboundOwner<Family>::Admit,
+        &FireOutboundOwner<Family>::Validate>(outboundOwner)));
 
     Store<4096,4> store;
     C::RuntimeConfiguration commandConfiguration{};
@@ -203,7 +221,8 @@ int main() {
     Handler handler;
     assert(commandRuntime.BindHandler<FireCommand>(handler,&Handler::Fire)==C::CommandRuntimeStatus::Success);
     assert(commandRuntime.BindPersistence<FireCommand>(store,StoreKey("mesh-command-out"))==C::CommandRuntimeStatus::Success);
-    assert(commandRuntime.BindTransport<FireCommand,Serializable::DirectBinary>(outbound)==C::CommandRuntimeStatus::Success);
+    assert((commandRuntime.BindTransport<FireCommand,Serializable::DirectBinary>(outbound)==
+            C::CommandRuntimeStatus::Success));
     assert(commandRuntime.Initialize(directory.View())==C::CommandRuntimeStatus::Success);
     assert((family.AttachRuntime<FireCommand,Serializable::DirectBinary>(commandRuntime)==
             MeshAdapters::CommandMeshAdapterBindingStatus::Success));
@@ -220,8 +239,8 @@ int main() {
     assert(commandRuntime.Start()==C::CommandRuntimeStatus::Success);
 
     const auto submitted=C::CommandTypeRuntime<FireCommand>::Get().SubmitRemoteNoResponse<false>(remote,73U);
-    assert(submitted.Accepted());
-    Eventually([&]{return lower.Calls.load()>=1;});
+    assert(static_cast<bool>(submitted));
+    Eventually([&]{ return lower.Calls.load()>=1; });
     assert(lower.Route.Value==0xA007U);
     assert(lower.Service==Adapters::AdapterServiceClass::BestEffort);
 
