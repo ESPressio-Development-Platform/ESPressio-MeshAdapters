@@ -166,8 +166,14 @@ struct LowerTransport final {
 
     static bool Validate(void*) noexcept { return true; }
     static Adapters::LowerTransportSubmitResult Submit(
-        void* owner,Adapters::AdapterRecordIdentity,Adapters::AdapterServiceClass,
-        Adapters::AdapterByteView bytes,Adapters::AdapterRouteToken route) noexcept {
+        void* owner,
+        Adapters::AdapterRecordIdentity,
+        Primitive::PrimitiveFamilyId,
+        Primitive::PrimitiveProtocolVersion,
+        const Primitive::PrimitivePolicyDescriptor&,
+        Adapters::AdapterServiceClass,
+        Adapters::AdapterByteView bytes,
+        Adapters::AdapterRouteToken route) noexcept {
         auto& self=*static_cast<LowerTransport*>(owner);
         assert(bytes.Data&&bytes.Size<=self.Last.size());
         std::memcpy(self.Last.data(),bytes.Data,bytes.Size);
