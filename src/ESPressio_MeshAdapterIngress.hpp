@@ -28,9 +28,15 @@ struct MeshAdapterAdmissionWakeTarget final {
 enum class MeshAdapterPolicyResolution : std::uint8_t { Resolved=0, Unsupported, Rejected, Malformed };
 
 using MeshAdapterPolicyResolver = MeshAdapterPolicyResolution(*)(
-    void*, Primitive::PrimitiveProtocolVersion, Adapters::AdapterByteView,
+    void*,
+    Primitive::PrimitiveProtocolVersion,
+    Mesh::MeshRelayServiceClass,
+    Adapters::AdapterByteView,
     Primitive::PrimitivePolicyDescriptor&) noexcept;
 
+/// <summary>Frozen family-specific policy/service resolver used before A2 accepts Mesh-owned inbound bytes.</summary>
+/// <remarks>The authenticated Mesh service is supplied explicitly so a family binding can enforce its immutable per-Type
+/// service mapping before ownership crosses into A2. A2 family admission intentionally has no transport-service argument.</remarks>
 struct MeshAdapterPolicyBinding final {
     Primitive::PrimitiveFamilyId Family{Primitive::FamilyIds::Invalid};
     Primitive::PrimitiveProtocolVersionRange Protocols{};
@@ -208,7 +214,7 @@ public:
 
         Primitive::PrimitivePolicyDescriptor familyPolicy{};
         const Adapters::AdapterByteView bytes{payload.Data,payload.Size};
-        switch(_policy.Resolve(_policy.Owner,version,bytes,familyPolicy)){
+        switch(_policy.Resolve(_policy.Owner,version,context.Service,bytes,familyPolicy)){
             case MeshAdapterPolicyResolution::Resolved: break;
             case MeshAdapterPolicyResolution::Unsupported: return P::Unsupported;
             case MeshAdapterPolicyResolution::Rejected: return P::Rejected;
