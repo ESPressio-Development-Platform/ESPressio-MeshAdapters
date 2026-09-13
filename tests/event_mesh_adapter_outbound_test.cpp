@@ -61,7 +61,7 @@ using Domain=Adapters::StaticCapacityDomain<1024,4,Arena>;
 using Inbound=Adapters::CapacityPlane<Adapters::AdapterDirection::Inbound,
     Domain,Domain,Domain,Domain,Domain,Domain,Domain,Domain>;
 using Outbound=Adapters::CapacityPlane<Adapters::AdapterDirection::Outbound,
-    Domain,Domain,Domain,Domain,Domain,Domain,Domain>;
+    Domain,Domain,Domain,Domain,Domain,Domain,Domain,Domain>;
 using AdapterRuntime=Adapters::AdapterRuntime<Inbound,Outbound,2,4,1,1,8>;
 
 struct LowerTransport final {
@@ -73,8 +73,14 @@ struct LowerTransport final {
 
     static bool Validate(void*) noexcept { return true; }
     static Adapters::LowerTransportSubmitResult Submit(
-        void* owner,Adapters::AdapterRecordIdentity,Adapters::AdapterServiceClass service,
-        Adapters::AdapterByteView bytes,Adapters::AdapterRouteToken route) noexcept {
+        void* owner,
+        Adapters::AdapterRecordIdentity,
+        Primitive::PrimitiveFamilyId,
+        Primitive::PrimitiveProtocolVersion,
+        const Primitive::PrimitivePolicyDescriptor&,
+        Adapters::AdapterServiceClass service,
+        Adapters::AdapterByteView bytes,
+        Adapters::AdapterRouteToken route) noexcept {
         auto& self=*static_cast<LowerTransport*>(owner);
         assert(bytes.Data&&bytes.Size<=self.Last.size());
         std::memcpy(self.Last.data(),bytes.Data,bytes.Size);
