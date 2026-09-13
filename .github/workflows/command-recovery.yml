@@ -1,0 +1,93 @@
+name: Command recovered-response A2 contract
+
+on:
+  push:
+    branches:
+      - primitives_redesign
+  pull_request:
+
+jobs:
+  command-recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ESPressio-MeshAdapters
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Mesh
+          ref: primitives_redesign
+          path: ESPressio-Mesh
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Adapters
+          ref: primitives_redesign
+          path: ESPressio-Adapters
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Primitive
+          ref: primitives_redesign
+          path: ESPressio-Primitive
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-System
+          ref: primitives_redesign
+          path: ESPressio-System
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Command
+          ref: primitives_redesign
+          path: ESPressio-Command
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Persistence
+          ref: primitives_redesign
+          path: ESPressio-Persistence
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Security
+          ref: primitives_redesign
+          path: ESPressio-Security
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Task
+          ref: primitives_redesign
+          path: ESPressio-Task
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Threads
+          ref: primitives_redesign
+          path: ESPressio-Threads
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Timing
+          ref: primitives_redesign
+          path: ESPressio-Timing
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Serializable
+          ref: primitives_redesign
+          path: ESPressio-Serializable
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Units
+          ref: primitives_redesign
+          path: ESPressio-Units
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Observable
+          ref: primitives_redesign
+          path: ESPressio-Observable
+      - name: Build recovered-response routing contract
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -Werror -fno-rtti
+          -IESPressio-MeshAdapters/src -IESPressio-Mesh/src -IESPressio-Adapters/src
+          -IESPressio-Primitive/src -IESPressio-System/src -IESPressio-Command/src
+          -IESPressio-Persistence/src -IESPressio-Security/src -IESPressio-Task/src
+          -IESPressio-Task/tests -IESPressio-Threads/src -IESPressio-Timing/src
+          -IESPressio-Timing/tests/stubs -IESPressio-Serializable/src -IESPressio-Units/src
+          -IESPressio-Observable/src
+          ESPressio-MeshAdapters/tests/command_mesh_adapter_recovered_response_test.cpp
+          -o command_mesh_adapter_recovered_response_test -pthread
+      - name: Run recovered-response routing contract
+        run: ./command_mesh_adapter_recovered_response_test
