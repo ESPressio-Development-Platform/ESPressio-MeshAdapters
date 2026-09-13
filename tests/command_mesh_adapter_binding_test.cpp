@@ -1,6 +1,7 @@
 #include <ESPressio_CommandMeshAdapterBinding.hpp>
 #include <ESPressio_CommandOutboundBinding.hpp>
 #include <ESPressio_Persistence.hpp>
+#include <ESPressio_Serializable.hpp>
 #include <HostRuntime.hpp>
 
 #include <array>
@@ -66,6 +67,8 @@ struct ReplyCommand final : C::TransmissibleCommand<ReplyCommand,Response> {
     using ResponseDeliveryPolicy=EvidencePolicy;
     using CompletionRetentionPolicy=Retention;
     std::uint32_t Value=0;
+    ReplyCommand() noexcept = default;
+    explicit ReplyCommand(std::uint32_t value) noexcept : Value(value) {}
     ESPRESSIO_SERIALIZABLE_TYPE(ReplyCommand)
     ESPRESSIO_SERIALIZABLE_SCHEMA_VERSION(1)
     ESPRESSIO_SERIALIZABLE_PROPERTIES(ESPRESSIO_PROPERTY("value",Value))
@@ -79,6 +82,8 @@ struct FireCommand final : C::TransmissibleCommand<FireCommand,C::NoCommandRespo
     using RequestDeliveryPolicy=NoEvidencePolicy;
     using CompletionRetentionPolicy=Retention;
     std::uint32_t Value=0;
+    FireCommand() noexcept = default;
+    explicit FireCommand(std::uint32_t value) noexcept : Value(value) {}
     ESPRESSIO_SERIALIZABLE_TYPE(FireCommand)
     ESPRESSIO_SERIALIZABLE_SCHEMA_VERSION(1)
     ESPRESSIO_SERIALIZABLE_PROPERTIES(ESPRESSIO_PROPERTY("value",Value))
@@ -254,7 +259,7 @@ int main(){
 
     const auto remote=Device(7);
     const C::CommandExecutionKey replyKey{ReplyCommand::TypeId,remote,System::RuntimeIncarnationId{3},C::CommandId{11}};
-    ReplyCommand reply{};reply.Value=35;
+    ReplyCommand reply{35};
     std::array<std::uint8_t,C::MaximumCompleteRequestWireBytes<ReplyCommand,Serializable::DirectBinary>> replyWire{};
     const auto replyBytes=EncodeRequest<ReplyCommand,Serializable::DirectBinary>(reply,replyKey,replyWire.data(),replyWire.size());
     Mesh::MeshReceiveContext replyContext{remote,Membership(4),101,3,false,Mesh::MeshRelayServiceClass::Responsive};
@@ -293,7 +298,7 @@ int main(){
 
     // A no-response NoRemoteEvidence Command is eligible for generic Mesh broadcast.
     const C::CommandExecutionKey fireKey{FireCommand::TypeId,remote,System::RuntimeIncarnationId{3},C::CommandId{12}};
-    FireCommand fire{};fire.Value=5;
+    FireCommand fire{5};
     std::array<std::uint8_t,C::MaximumCompleteRequestWireBytes<FireCommand,Serializable::DirectBinary>> fireWire{};
     const auto fireBytes=EncodeRequest<FireCommand,Serializable::DirectBinary>(fire,fireKey,fireWire.data(),fireWire.size());
     Mesh::MeshReceiveContext fireContext{remote,Membership(4),102,3,true,Mesh::MeshRelayServiceClass::BestEffort};
