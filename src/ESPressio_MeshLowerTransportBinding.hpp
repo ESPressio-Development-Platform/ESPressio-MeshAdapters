@@ -34,9 +34,20 @@ struct MeshApplicationSubmissionResult final {
     bool DeferredCompletion{false};
 };
 
+/// <summary>
+/// Composition-owned Mesh application submission seam for one already-encoded Primitive representation.
+/// </summary>
+/// <remarks>
+/// Family, protocol and policy are immutable neutral metadata owned by the A2 record and are forwarded intact so Mesh can
+/// construct its generic application framing and enforce only Mesh-owned routing/lifecycle semantics. Mesh must not use
+/// them to acquire Event/Command/State implementation knowledge or create a second P2 pursuit loop.
+/// </remarks>
 using MeshApplicationSubmitThunk = MeshApplicationSubmissionResult(*)(
     void*,
     Adapters::AdapterRecordIdentity,
+    Primitive::PrimitiveFamilyId,
+    Primitive::PrimitiveProtocolVersion,
+    const Primitive::PrimitivePolicyDescriptor&,
     Mesh::MeshRelayServiceClass,
     Adapters::AdapterByteView,
     Adapters::AdapterRouteToken,
@@ -110,9 +121,9 @@ constexpr std::uint8_t ToAdapterServiceMask(std::uint8_t meshMask) noexcept {
 
 /// <summary>Neutral A2 lower-transport binding backed by the existing Mesh application lifecycle.</summary>
 /// <remarks>
-/// Family/version/policy supplied by A2 are intentionally ignored here: Mesh already owns its application framing and
-/// pursuit semantics. Those neutral facts are exposed so other transports can construct their own locked envelope and
-/// finite transport timing without making family encoders transport-specific.
+/// The complete family wire representation remains A2-owned. Family/version/policy are forwarded as generic Primitive
+/// metadata because Mesh owns the generic application envelope and route lifecycle. The binding never interprets
+/// family-specific Types and never moves logical pursuit/retry ownership out of A2.
 /// </remarks>
 template<class TAdapterRuntime>
 class MeshLowerTransportBinding final {
@@ -134,9 +145,9 @@ class MeshLowerTransportBinding final {
     static Adapters::LowerTransportSubmitResult SubmitThunk(
         void* owner,
         Adapters::AdapterRecordIdentity record,
-        Primitive::PrimitiveFamilyId,
-        Primitive::PrimitiveProtocolVersion,
-        const Primitive::PrimitivePolicyDescriptor&,
+        Primitive::PrimitiveFamilyId family,
+        Primitive::PrimitiveProtocolVersion protocol,
+        const Primitive::PrimitivePolicyDescriptor& policy,
         Adapters::AdapterServiceClass service,
         Adapters::AdapterByteView bytes,
         Adapters::AdapterRouteToken route) noexcept {
@@ -145,7 +156,7 @@ class MeshLowerTransportBinding final {
         if(!self._mesh || !ToMeshRelayServiceClass(service,meshService) || !self._mesh.Supports(meshService))
             return {Adapters::LowerTransportDisposition::PermanentlyRejected,0,false};
         const auto submitted=self._mesh.Submit(
-            self._mesh.Owner,record,meshService,bytes,route,
+            self._mesh.Owner,record,family,protocol,policy,meshService,bytes,route,
             MeshApplicationCompletionTarget{&self,&MeshLowerTransportBinding::CompleteThunk});
         if(submitted.DeferredCompletion && submitted.Generation==0)
             return {Adapters::LowerTransportDisposition::ResourceUnavailable,0,false};

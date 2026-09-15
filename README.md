@@ -16,6 +16,8 @@ Borrowed Mesh bytes are copied into bounded adapter-owned storage before asynchr
 
 `ESPressio_MeshLowerTransportBinding.hpp` is the neutral lower transport used by A2 for outbound primitive bytes. A2 owns logical pursuit, bounded retry state and required evidence; Mesh owns route/forwarding/application lifecycle; Radio owns physical contention, framing and fragmentation beneath Mesh.
 
+The lower binding forwards the A2 record's immutable `PrimitiveFamilyId`, protocol version and normalized policy descriptor together with the owned family wire bytes. Those values are generic Primitive metadata needed by Mesh to construct its application framing and lifecycle; MeshAdapters does not interpret family implementation Types, and Mesh does not acquire Event/Command/State dependencies. The Mesh composition must retain/copy any required facts before its synchronous submission thunk returns.
+
 `ESPressio_MeshRouteBinding.hpp` resolves semantic `DeviceIdentifier` destinations to opaque `AdapterRouteToken` values. Route tokens are transport facts and must not encode, truncate or substitute for device identity.
 
 ### Event
@@ -44,4 +46,4 @@ The redesign intentionally removes the predecessor Event-only `EventMeshTranspor
 
 ## Validation
 
-The `tests/` contracts exercise the neutral Mesh/A2 boundary and real Event, Command and State runtimes. In particular they cover Event remote-to-local dispatch and no re-egress, Command idempotency, local request delivery, terminal request-delivery failure and durable recovered-response routing, and State ingress plus terminal convergence-exhaustion feedback.
+The `tests/` contracts exercise the neutral Mesh/A2 boundary and real Event, Command and State runtimes. In particular they cover exact family/protocol/policy metadata preservation across the A2-to-Mesh seam, Event remote-to-local dispatch and no re-egress, Command idempotency, local request delivery, terminal request-delivery failure and durable recovered-response routing, and State ingress plus terminal convergence-exhaustion feedback.

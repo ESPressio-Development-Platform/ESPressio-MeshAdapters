@@ -17,15 +17,26 @@ struct MockAdapterRuntime final {
 struct MeshLifecycle final {
     bool Running=true,Cancelled=false,Quiesced=false;
     Adapters::AdapterRecordIdentity Record{};
+    Primitive::PrimitiveFamilyId Family{0};
+    Primitive::PrimitiveProtocolVersion Protocol{0};
+    Primitive::PrimitivePolicyDescriptor Policy{};
     Mesh::MeshRelayServiceClass Service{Mesh::MeshRelayServiceClass::BestEffort};
     Adapters::AdapterByteView Bytes{};
     Adapters::AdapterRouteToken Route{};
     MeshAdapters::MeshApplicationCompletionTarget Completion{};
-    static MeshAdapters::MeshApplicationSubmissionResult Submit(void* owner,Adapters::AdapterRecordIdentity record,
-        Mesh::MeshRelayServiceClass service,Adapters::AdapterByteView bytes,Adapters::AdapterRouteToken route,
+    static MeshAdapters::MeshApplicationSubmissionResult Submit(
+        void* owner,
+        Adapters::AdapterRecordIdentity record,
+        Primitive::PrimitiveFamilyId family,
+        Primitive::PrimitiveProtocolVersion protocol,
+        const Primitive::PrimitivePolicyDescriptor& policy,
+        Mesh::MeshRelayServiceClass service,
+        Adapters::AdapterByteView bytes,
+        Adapters::AdapterRouteToken route,
         MeshAdapters::MeshApplicationCompletionTarget completion) noexcept {
         auto& self=*static_cast<MeshLifecycle*>(owner);
-        self.Record=record;self.Service=service;self.Bytes=bytes;self.Route=route;self.Completion=completion;
+        self.Record=record;self.Family=family;self.Protocol=protocol;self.Policy=policy;
+        self.Service=service;self.Bytes=bytes;self.Route=route;self.Completion=completion;
         return {Adapters::LowerTransportDisposition::Accepted,17,true};
     }
     static bool Validate(void* owner) noexcept{return static_cast<MeshLifecycle*>(owner)->Running;}
@@ -56,10 +67,22 @@ int main(){
     std::array<std::uint8_t,4> bytes{{1,2,3,4}};
     const Adapters::AdapterRecordIdentity record{Adapters::AdapterDirection::Outbound,Adapters::CapacityDomainKind::ResponsivePrivate,2,9};
     const Adapters::AdapterRouteToken route{0x1234};
-    Primitive::PrimitivePolicyDescriptor policy{};policy.Category=1;policy.MaximumAttempts=1;
-    const auto submitted=binding.Submit(binding.Owner,record,0x1201,3,policy,Adapters::AdapterServiceClass::Responsive,{bytes.data(),bytes.size()},route);
+    Primitive::PrimitivePolicyDescriptor policy{};
+    policy.Category=1;
+    policy.Evidence=1;
+    policy.Terminal=0;
+    policy.MaximumResidenceNanoseconds=1000000;
+    policy.MaximumAttempts=2;
+    policy.MaximumAdapterAdmissionWaitNanoseconds=1000;
+    policy.MinimumRetrySpacingNanoseconds=100;
+    policy.MaximumRetrySpacingNanoseconds=1000;
+    constexpr Primitive::PrimitiveFamilyId family=0x1201;
+    constexpr Primitive::PrimitiveProtocolVersion protocol=3;
+    const auto submitted=binding.Submit(binding.Owner,record,family,protocol,policy,Adapters::AdapterServiceClass::Responsive,{bytes.data(),bytes.size()},route);
     assert(submitted.Disposition==Adapters::LowerTransportDisposition::Accepted&&submitted.Generation==17&&submitted.DeferredCompletion);
     assert(lifecycle.Record.Slot==record.Slot&&lifecycle.Record.Generation==record.Generation);
+    assert(lifecycle.Family==family&&lifecycle.Protocol==protocol);
+    assert(lifecycle.Policy.CanonicalBytes()==policy.CanonicalBytes());
     assert(lifecycle.Service==Mesh::MeshRelayServiceClass::Responsive);
     assert(lifecycle.Bytes.Data==bytes.data()&&lifecycle.Bytes.Size==bytes.size());assert(lifecycle.Route.Value==route.Value);assert(lifecycle.Completion);
 
